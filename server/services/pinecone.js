@@ -14,7 +14,11 @@ export const initPinecone = async () => {
 
     pineconeIndex = pineconeClient.index(process.env.PINECONE_INDEX_NAME || 'medical-documents');
 
+    // Log index stats
+    const stats = await pineconeIndex.describeIndexStats();
     console.log('✅ Pinecone initialized successfully');
+    console.log(`📊 Index stats: ${stats.totalRecordCount || 0} records, dimension: ${stats.dimension || 'unknown'}`);
+    
     return pineconeIndex;
   } catch (error) {
     console.error('❌ Error initializing Pinecone:', error);
@@ -28,11 +32,15 @@ export const upsertVectors = async (vectors) => {
       await initPinecone();
     }
 
+    if (!vectors || vectors.length === 0) {
+      throw new Error('No vectors to upsert. Document may be empty or embeddings failed.');
+    }
+
     const records = vectors.map((vec, idx) => ({
       id: vec.id || `chunk-${Date.now()}-${idx}`,
       values: vec.embedding,
       metadata: {
-        text: vec.text,
+        text: vec.text.substring(0, 40000), // Pinecone metadata limit
         documentId: vec.documentId,
         documentTitle: vec.documentTitle,
         chunkIndex: vec.chunkIndex,
@@ -40,11 +48,22 @@ export const upsertVectors = async (vectors) => {
       },
     }));
 
-    await pineconeIndex.upsert(records);
-    console.log(`✅ Upserted ${records.length} vectors to Pinecone`);
+    console.log(`📤 Upserting ${records.length} vectors to Pinecone...`);
+    console.log(`📏 Vector dimension: ${records[0]?.values?.length}`);
+
+    // Batch upsert in chunks of 100 to avoid timeouts
+    const batchSize = 100;
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+      await pineconeIndex.upsert(batch);
+      console.log(`✅ Upserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(records.length / batchSize)}`);
+    }
+
+    console.log(`✅ Successfully upserted ${records.length} vectors to Pinecone`);
     return records.length;
   } catch (error) {
     console.error('❌ Error upserting vectors:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     throw error;
   }
 };

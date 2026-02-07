@@ -1,5 +1,5 @@
 import { generateEmbedding, generateResponse } from './gemini.js';
-import { queryVectors } from './pinecone.js';
+import { queryVectors } from './pgvector.js';
 import { query } from '../config/database.js';
 
 export const processQuery = async (message, phoneNumber, channel) => {
@@ -19,15 +19,15 @@ export const processQuery = async (message, phoneNumber, channel) => {
     }
 
     const context = relevantChunks
-      .map((chunk, idx) => `[${idx + 1}] ${chunk.text} (Source: ${chunk.documentTitle})`)
+      .map((chunk, idx) => `[${idx + 1}] ${chunk.metadata.text} (Source: Document ${chunk.metadata.documentId})`)
       .join('\n\n');
 
     const citations = relevantChunks.map((chunk, idx) => ({
       index: idx + 1,
-      documentTitle: chunk.documentTitle,
-      documentId: chunk.documentId,
+      documentTitle: `Document ${chunk.metadata.documentId}`,
+      documentId: chunk.metadata.documentId,
       score: chunk.score,
-      text: chunk.text.substring(0, 100),
+      text: chunk.metadata.text.substring(0, 100),
     }));
 
     const aiResponse = await generateResponse(message, context);

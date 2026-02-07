@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { query } from '../config/database.js';
 import { processDocument } from '../services/documentProcessor.js';
-import { deleteVectorsByDocument } from '../services/pinecone.js';
+import { deleteVectorsByDocument } from '../services/pgvector.js';
 
 const router = express.Router();
 

@@ -106,13 +106,13 @@ export default function Documents() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 max-w-full">
       <div>
-        <h2 className="text-2xl font-bold text-green-900 mb-1">Document Library</h2>
-        <p className="text-green-600">Upload and manage medical documents for the RAG system</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-green-900 mb-1">Document Library</h2>
+        <p className="text-green-600 text-sm sm:text-base">Upload and manage medical documents for the RAG system</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-green-200 p-6">
+      <div className="bg-white rounded-xl border border-green-200 p-3 sm:p-6">
         <h3 className="text-lg font-bold text-green-900 mb-4 flex items-center gap-2">
           <Upload className="w-5 h-5" />
           Upload New Document
@@ -169,31 +169,31 @@ export default function Documents() {
             </div>
           ) : (
             documents.map((doc) => (
-              <div key={doc.id} className="p-4 hover:bg-green-50 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1">
+              <div key={doc.id} className="p-3 sm:p-4 hover:bg-green-50 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
                       <FileText className="w-6 h-6 text-green-600" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-green-900 mb-1">{doc.title}</h4>
-                      <p className="text-sm text-green-600 mb-2">{doc.file_name}</p>
+                      <h4 className="font-bold text-green-900 mb-1 break-words">{doc.title}</h4>
+                      <p className="text-sm text-green-600 mb-2 break-words">{doc.file_name}</p>
 
-                      <div className="flex items-center gap-4 text-sm text-green-500">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-green-500">
                         <div className="flex items-center gap-1">
                           {getStatusIcon(doc.status)}
                           <span className="capitalize">{doc.status}</span>
                         </div>
                         {doc.total_chunks > 0 && (
-                          <span>{doc.total_chunks} chunks</span>
+                          <span className="whitespace-nowrap">{doc.total_chunks} chunks</span>
                         )}
-                        <span>{new Date(doc.uploaded_at).toLocaleDateString()}</span>
+                        <span className="whitespace-nowrap">{new Date(doc.uploaded_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 sm:self-start">
                     <button
                       onClick={() => handleDelete(doc.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"

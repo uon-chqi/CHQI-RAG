@@ -10,6 +10,7 @@ import analyticsRoutes from './routes/analytics.js';
 import healthRoutes from './routes/health.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { initPgVector } from './services/pgvector.js';
 
 dotenv.config();
 
@@ -33,7 +34,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🏥 Healthcare RAG Server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+  
+  // Initialize pgvector
+  try {
+    await initPgVector();
+  } catch (error) {
+    console.error('Failed to initialize pgvector:', error.message);
+  }
 });

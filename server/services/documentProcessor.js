@@ -1,7 +1,7 @@
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
-import { generateEmbedding } from './gemini.js';
-import { upsertVectors } from './pinecone.js';
+import { generateEmbedding, generateEmbeddings } from './gemini.js';
+import { upsertVectors } from './pgvector.js';
 
 export const chunkText = (text, chunkSize = 800, overlap = 200) => {
   const chunks = [];
@@ -65,27 +65,43 @@ export const processDocument = async (file, documentId, documentTitle) => {
 
     text = text.replace(/\s+/g, ' ').trim();
 
+    if (!text) {
+      throw new Error('Document has no extractable text. Please upload a text-based PDF or DOCX.');
+    }
+
     const chunks = chunkText(text);
     console.log(`📄 Created ${chunks.length} chunks from document`);
 
+    if (chunks.length === 0) {
+      throw new Error('Document produced no chunks. Please verify the file contains readable text.');
+    }
+
     const vectors = [];
-    for (let i = 0; i < chunks.length; i++) {
+    const batchSize = Number(process.env.EMBEDDING_BATCH_SIZE || 50);
+
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batchChunks = chunks.slice(i, i + batchSize);
       try {
-        const embedding = await generateEmbedding(chunks[i]);
+        const embeddings = await generateEmbeddings(batchChunks);
 
-        vectors.push({
-          id: `${documentId}-chunk-${i}`,
-          embedding,
-          text: chunks[i],
-          documentId,
-          documentTitle,
-          chunkIndex: i,
+        embeddings.forEach((embedding, idx) => {
+          const chunkIndex = i + idx;
+          vectors.push({
+            id: `${documentId}-chunk-${chunkIndex}`,
+            embedding,
+            text: batchChunks[idx],
+            documentId,
+            documentTitle,
+            chunkIndex,
+          });
         });
-
-        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (error) {
-        console.error(`Error processing chunk ${i}:`, error);
+        console.error(`Error processing chunk batch starting at ${i}:`, error);
       }
+    }
+
+    if (vectors.length === 0) {
+      throw new Error('No embeddings were generated for this document. Please retry or check your embedding API configuration.');
     }
 
     await upsertVectors(vectors);
