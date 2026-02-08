@@ -10,12 +10,11 @@ import analyticsRoutes from './routes/analytics.js';
 import healthRoutes from './routes/health.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { initPgVector } from './services/pgvector.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const DEFAULT_PORT = parseInt(process.env.PORT) || 5000;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -34,14 +33,28 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, async () => {
-  console.log(`🏥 Healthcare RAG Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-  
-  // Initialize pgvector
-  try {
-    await initPgVector();
-  } catch (error) {
-    console.error('Failed to initialize pgvector:', error.message);
-  }
-});
+// Function to start server with retry logic
+const startServer = (port) => {
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`✅ Healthcare RAG Server running on port ${port}`);
+    console.log(`📊 Health check: http://localhost:${port}/api/health`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`⚠️ Port ${port} is in use, trying port ${port + 1}...`);
+      // Close the server and try next port
+      server.close();
+      startServer(port + 1);
+    } else {
+      console.error('❌ Server error:', err);
+      process.exit(1);
+    }
+  });
+
+  return server;
+};
+
+// Start the server
+console.log(`🚀 Starting server...`);
+startServer(DEFAULT_PORT);

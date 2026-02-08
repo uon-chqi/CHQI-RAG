@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 export interface Conversation {
   id: string;
@@ -20,7 +20,9 @@ export interface Document {
   file_name: string;
   file_path: string;
   file_type: string;
+  file_size?: number;
   total_chunks: number;
+  query_count?: number;
   status: 'processing' | 'completed' | 'error';
   metadata: any;
   uploaded_at: string;

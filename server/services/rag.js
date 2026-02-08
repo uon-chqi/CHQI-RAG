@@ -6,9 +6,18 @@ export const processQuery = async (message, phoneNumber, channel) => {
   const startTime = Date.now();
 
   try {
+    console.log(`🔍 Processing query: "${message}"`);
+    
     const queryEmbedding = await generateEmbedding(message);
+    console.log(`✅ Generated query embedding: ${queryEmbedding.length} dimensions`);
 
     const relevantChunks = await queryVectors(queryEmbedding, 5);
+    console.log(`📊 Found ${relevantChunks.length} relevant chunks`);
+    
+    if (relevantChunks.length > 0) {
+      console.log(`   Top match score: ${relevantChunks[0].score}`);
+      console.log(`   Preview: ${relevantChunks[0].metadata?.text?.substring(0, 100)}...`);
+    }
 
     if (relevantChunks.length === 0) {
       return {
@@ -19,15 +28,15 @@ export const processQuery = async (message, phoneNumber, channel) => {
     }
 
     const context = relevantChunks
-      .map((chunk, idx) => `[${idx + 1}] ${chunk.metadata.text} (Source: Document ${chunk.metadata.documentId})`)
+      .map((chunk, idx) => `[${idx + 1}] ${chunk.metadata.text} (Source: ${chunk.metadata.documentTitle || 'Medical Document'})`)
       .join('\n\n');
 
     const citations = relevantChunks.map((chunk, idx) => ({
       index: idx + 1,
-      documentTitle: `Document ${chunk.metadata.documentId}`,
+      documentTitle: chunk.metadata.documentTitle || 'Medical Document',
       documentId: chunk.metadata.documentId,
       score: chunk.score,
-      text: chunk.metadata.text.substring(0, 100),
+      text: (chunk.metadata.text || '').substring(0, 100),
     }));
 
     const aiResponse = await generateResponse(message, context);

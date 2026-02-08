@@ -5,7 +5,8 @@ const router = express.Router();
 
 router.post('/query', async (req, res) => {
   try {
-    const { message, phone, channel = 'api' } = req.body;
+    const { message, phone, channel } = req.body;
+    const normalizedChannel = !channel || channel === 'api' ? 'sms' : channel;
 
     if (!message || !phone) {
       return res.status(400).json({
@@ -14,7 +15,14 @@ router.post('/query', async (req, res) => {
       });
     }
 
-    const result = await processQuery(message, phone, channel);
+    if (!['sms', 'whatsapp'].includes(normalizedChannel)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid channel. Use sms or whatsapp.',
+      });
+    }
+
+    const result = await processQuery(message, phone, normalizedChannel);
 
     res.json({
       success: true,

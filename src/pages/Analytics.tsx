@@ -25,8 +25,8 @@ export default function Analytics() {
   const fetchAnalytics = async () => {
     try {
       const [topicsRes, channelRes] = await Promise.all([
-        fetch('http://localhost:3001/api/analytics/topics'),
-        fetch('http://localhost:3001/api/analytics/channel-stats'),
+        fetch('http://localhost:5000/api/analytics/topics'),
+        fetch('http://localhost:5000/api/analytics/channel-stats'),
       ]);
 
       const topicsData = await topicsRes.json();
