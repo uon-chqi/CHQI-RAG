@@ -8,9 +8,16 @@ const router = express.Router();
 
 router.post('/sms/receive', webhookRateLimiter, async (req, res) => {
   try {
+    console.log('🔔 SMS Webhook received:', {
+      body: req.body,
+      headers: req.headers,
+      timestamp: new Date().toISOString()
+    });
+
     const { from, text } = req.body;
 
     if (!from || !text) {
+      console.log('❌ Missing required fields - from:', from, 'text:', text);
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -22,8 +29,15 @@ router.post('/sms/receive', webhookRateLimiter, async (req, res) => {
 
     const result = await processQuery(text, from, 'sms');
 
+    console.log('📤 Sending SMS response:', {
+      to: from,
+      responseLength: result.response.length,
+      timestamp: new Date().toISOString()
+    });
+
     await sendSMS(from, result.response);
 
+    console.log('✅ SMS processed successfully for:', from);
     res.status(200).send('OK');
   } catch (error) {
     console.error('SMS webhook error:', error);

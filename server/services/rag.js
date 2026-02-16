@@ -39,7 +39,26 @@ export const processQuery = async (message, phoneNumber, channel) => {
       text: (chunk.metadata.text || '').substring(0, 100),
     }));
 
-    const aiResponse = await generateResponse(message, context);
+    let aiResponse = await generateResponse(message, context);
+
+    // Remove any citation markers like [1], [2], [3] from the response
+    aiResponse = aiResponse.replace(/\s*\[\d+\]/g, '').replace(/\s{2,}/g, ' ').trim();
+
+    // Ensure response ends with a complete sentence (not cut off mid-word)
+    if (aiResponse && !aiResponse.match(/[.!?]\s*$/)) {
+      // Find the last complete sentence
+      const lastPeriod = aiResponse.lastIndexOf('.');
+      const lastExclaim = aiResponse.lastIndexOf('!');
+      const lastQuestion = aiResponse.lastIndexOf('?');
+      const lastSentenceEnd = Math.max(lastPeriod, lastExclaim, lastQuestion);
+      
+      if (lastSentenceEnd > 0) {
+        aiResponse = aiResponse.substring(0, lastSentenceEnd + 1);
+      } else {
+        // If no sentence ending found, add one
+        aiResponse += '.';
+      }
+    }
 
     const responseTime = Date.now() - startTime;
 

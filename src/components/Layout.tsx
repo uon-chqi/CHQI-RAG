@@ -14,11 +14,13 @@ import {
   ChevronRight,
   Menu,
   X,
+  MessageCircle,
 } from 'lucide-react';
 import { Input } from './ui/input';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/chat', icon: MessageCircle, label: 'Live Chat' },
   { path: '/live', icon: MessageSquare, label: 'Live Messages' },
   { path: '/conversations', icon: Clock, label: 'Conversations' },
   { path: '/documents', icon: FileText, label: 'Document Library' },

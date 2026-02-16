@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
+import Chat from './pages/Chat';
 import LiveMessages from './pages/LiveMessages';
 import Conversations from './pages/Conversations';
 import Documents from './pages/Documents';
@@ -13,6 +14,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
+          <Route path="chat" element={<Chat />} />
           <Route path="live" element={<LiveMessages />} />
           <Route path="conversations" element={<Conversations />} />
           <Route path="documents" element={<Documents />} />

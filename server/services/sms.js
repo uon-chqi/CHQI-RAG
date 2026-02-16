@@ -25,6 +25,7 @@ export const sendSMS = async (phoneNumber, message) => {
     const options = {
       to: [phoneNumber],
       message: message,
+      from: process.env.AFRICASTALKING_SHORTCODE, // Use your shortcode as sender
     };
 
     const result = await client.send(options);

@@ -6,7 +6,7 @@ const router = express.Router();
 router.post('/query', async (req, res) => {
   try {
     const { message, phone, channel } = req.body;
-    const normalizedChannel = !channel || channel === 'api' ? 'sms' : channel;
+    const normalizedChannel = !channel || channel === 'api' || channel === 'web' ? 'sms' : channel;
 
     if (!message || !phone) {
       return res.status(400).json({

@@ -38,6 +38,15 @@ export interface SystemHealth {
   response_time_ms: number | null;
 }
 
+export interface ChatMessage {
+  id: string;
+  message: string;
+  response?: string;
+  timestamp: Date;
+  isLoading?: boolean;
+  error?: string;
+}
+
 export interface DashboardStats {
   todayMessages: number;
   weekMessages: number;
@@ -75,6 +84,28 @@ export const api = {
   async getSystemHealth() {
     const res = await fetch(`${API_BASE_URL}/system/health`);
     if (!res.ok) throw new Error('Failed to fetch system health');
+    return res.json();
+  },
+
+  async sendChatMessage(message: string) {
+    const res = await fetch(`${API_BASE_URL}/rag/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        phone: 'web-user',
+        channel: 'sms'
+      }),
+    });
+    if (!res.ok) throw new Error('Failed to send message');
+    return res.json();
+  },
+
+  async getChatHistory() {
+    const res = await fetch(`${API_BASE_URL}/conversations?phone=web-user&limit=100`);
+    if (!res.ok) throw new Error('Failed to fetch chat history');
     return res.json();
   },
 };

@@ -46,22 +46,26 @@ export const generateEmbedding = async (text) => {
 
 export const generateResponse = async (prompt, context) => {
   try {
-    const systemPrompt = `You are a helpful medical information assistant. Your role is to provide accurate, safe medical information based on the context provided.
+    const systemPrompt = `You are a trusted medical information assistant for patients. Your role is to provide accurate, safe, and consistent medical information based ONLY on the context provided below.
 
-IMPORTANT GUIDELINES:
-1. Always base your answers on the provided medical documents
-2. If the information is not in the context, say "I don't have enough information to answer that"
-3. Always recommend consulting a healthcare professional for medical decisions
-4. Never provide emergency medical advice - always direct to emergency services
-5. Keep responses concise (under 160 characters when possible for SMS)
-6. Include citation numbers [1], [2] for sources
+STRICT RULES:
+1. ONLY use information from the provided medical documents below. Do not add external knowledge.
+2. If the information is not in the context, say "I don't have enough information to answer that question. Please consult your healthcare provider."
+3. Always end with a reminder to consult a healthcare professional.
+4. Never provide emergency medical advice - direct to emergency services (call 999 or go to nearest hospital).
+5. Do NOT include citation numbers, reference numbers, or source markers like [1], [2], etc.
+6. Write in simple, clear language that any patient can easily understand.
+7. ALWAYS complete your response fully. Never leave sentences unfinished.
+8. Keep responses between 2-4 sentences. Be thorough but concise.
+9. Use bullet points only when listing 3 or more items.
+10. For the same question, always give the same core answer based on the documents.
 
 Context from medical documents:
 ${context}
 
-User question: ${prompt}
+Patient question: ${prompt}
 
-Provide a helpful, accurate response:`;
+Provide a complete, helpful, and accurate response:`;
 
     const apiKey = process.env.GEMINI_API_KEY;
     
@@ -83,9 +87,9 @@ Provide a helpful, accurate response:`;
           parts: [{ text: systemPrompt }]
         }],
         generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 500,
-          topP: 0.95
+          temperature: 0.1,
+          maxOutputTokens: 1024,
+          topP: 0.8
         }
       })
     });
