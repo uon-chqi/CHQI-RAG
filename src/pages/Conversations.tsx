@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search, Filter } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { api, Conversation } from '../lib/api';
 
 export default function Conversations() {
@@ -7,7 +8,19 @@ export default function Conversations() {
   const [loading, setLoading] = useState(true);
   const [searchPhone, setSearchPhone] = useState('');
   const [filterChannel, setFilterChannel] = useState<string>('all');
+  const [searchParams] = useSearchParams();
 
+  // Get phone from URL on component mount
+  useEffect(() => {
+    const urlPhone = searchParams.get('phone');
+    if (urlPhone) {
+      setSearchPhone(urlPhone);
+    } else {
+      setSearchPhone('');
+    }
+  }, [searchParams.get('phone')]);
+
+  // Fetch conversations when searchPhone or filterChannel changes
   useEffect(() => {
     fetchConversations();
   }, [searchPhone, filterChannel]);

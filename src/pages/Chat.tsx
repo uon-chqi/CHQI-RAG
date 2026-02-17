@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, Bot, User, Clock, Loader2 } from 'lucide-react';
+import { Send, MessageCircle, Bot, Clock, Loader2 } from 'lucide-react';
 import { api, ChatMessage } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -9,6 +9,7 @@ export default function Chat() {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,6 +28,7 @@ export default function Chat() {
   const loadChatHistory = async () => {
     try {
       setIsLoadingHistory(true);
+      setError(null);
       const response = await api.getChatHistory();
       const conversations = response.data || [];
 
@@ -60,6 +62,9 @@ export default function Chat() {
       setMessages(history);
     } catch (error) {
       console.error('Error loading chat history:', error);
+      setError('Failed to load chat history. Starting fresh.');
+      // Don't crash, just start with empty messages
+      setMessages([]);
     } finally {
       setIsLoadingHistory(false);
     }
@@ -68,9 +73,11 @@ export default function Chat() {
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
+    const messageText = inputMessage.trim();
+    
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      message: inputMessage,
+      message: messageText,
       timestamp: new Date(),
       isLoading: false,
     };
@@ -78,12 +85,13 @@ export default function Chat() {
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
+    setError(null);
 
     // Add loading message for bot response
     const loadingMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       message: '',
-      response: 'Thinking...',
+      response: '',
       timestamp: new Date(),
       isLoading: true,
     };
@@ -91,7 +99,8 @@ export default function Chat() {
     setMessages(prev => [...prev, loadingMessage]);
 
     try {
-      const response = await api.sendChatMessage(inputMessage);
+      // Fixed: Pass only the message, phone parameter is now handled in api.ts
+      const response = await api.sendChatMessage(messageText);
       
       setMessages(prev => prev.map(msg => 
         msg.id === loadingMessage.id 
@@ -105,13 +114,19 @@ export default function Chat() {
     } catch (error) {
       console.error('Error sending message:', error);
       
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'An unexpected error occurred. Please try again.';
+      
+      setError(errorMessage);
+      
       setMessages(prev => prev.map(msg => 
         msg.id === loadingMessage.id 
           ? { 
               ...msg, 
-              response: 'Sorry, I encountered an error. Please try again.',
+              response: `Sorry, I encountered an error: ${errorMessage}`,
               isLoading: false,
-              error: 'Failed to get response'
+              error: errorMessage
             }
           : msg
       ));
@@ -168,6 +183,13 @@ export default function Chat() {
           {messages.filter(m => m.message && !m.response).length} messages
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-3">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -234,7 +256,7 @@ export default function Chat() {
                       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                         <Bot className="w-4 h-4 text-green-600" />
                       </div>
-                      <div className="bg-gray-100 rounded-lg rounded-tl-sm px-4 py-2">
+                      <div className={`${msg.error ? 'bg-red-50' : 'bg-gray-100'} rounded-lg rounded-tl-sm px-4 py-2`}>
                         {msg.isLoading ? (
                           <div className="flex items-center gap-2">
                             <div className="flex space-x-1">
@@ -246,7 +268,9 @@ export default function Chat() {
                           </div>
                         ) : (
                           <>
-                            <p className="break-words whitespace-pre-wrap">{msg.response}</p>
+                            <p className={`break-words whitespace-pre-wrap ${msg.error ? 'text-red-700' : 'text-gray-700'}`}>
+                              {msg.response}
+                            </p>
                             <div className="flex items-center gap-1 mt-1">
                               <Clock className="w-3 h-3 text-gray-400" />
                               <span className="text-xs text-gray-500">

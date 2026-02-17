@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://chqi-rag.onrender.com/api';
+const API_BASE_URL = 'http://localhost:5000';
 
 export interface Conversation {
   id: string;
@@ -61,51 +61,110 @@ export interface DashboardStats {
   responseChange: number;
 }
 
+// Get or create a persistent user ID
+function getUserPhone(): string {
+  if (typeof window === 'undefined') return 'default-user';
+  
+  let phone = localStorage.getItem('user_phone');
+  if (!phone) {
+    // Generate a default phone-like identifier if not set
+    phone = `user-${Date.now()}`;
+    localStorage.setItem('user_phone', phone);
+  }
+  return phone;
+}
+
 export const api = {
   async getConversations() {
-    const res = await fetch(`${API_BASE_URL}/conversations`);
+    // Fixed: Added /api prefix
+    const res = await fetch(`${API_BASE_URL}/api/conversations`);
     if (!res.ok) throw new Error('Failed to fetch conversations');
     return res.json();
   },
 
   async getDocuments() {
-    const res = await fetch(`${API_BASE_URL}/documents`);
+    // Fixed: Added /api prefix
+    const res = await fetch(`${API_BASE_URL}/api/documents`);
     if (!res.ok) throw new Error('Failed to fetch documents');
     return res.json();
   },
 
   async getDashboardStats(): Promise<DashboardStats> {
-    const res = await fetch(`${API_BASE_URL}/analytics/dashboard-stats`);
+    // Fixed: Added /api prefix
+    const res = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats`);
     if (!res.ok) throw new Error('Failed to fetch dashboard stats');
     const data = await res.json();
     return data.data;
   },
 
   async getSystemHealth() {
-    const res = await fetch(`${API_BASE_URL}/system/health`);
+    // Fixed: Added /api prefix
+    const res = await fetch(`${API_BASE_URL}/api/system/health`);
     if (!res.ok) throw new Error('Failed to fetch system health');
     return res.json();
   },
 
   async sendChatMessage(message: string) {
-    const res = await fetch(`${API_BASE_URL}/rag/query`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message,
-        phone: 'web-user',
-        channel: 'sms'
-      }),
-    });
-    if (!res.ok) throw new Error('Failed to send message');
-    return res.json();
+    const phone = getUserPhone();
+    
+    if (!message || !message.trim()) {
+      throw new Error('Message cannot be empty');
+    }
+
+    try {
+      // Fixed: Added /api prefix
+      const res = await fetch(`${API_BASE_URL}/api/rag/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message.trim(),
+          phone,
+          channel: 'sms'
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
+        const errorMsg = errorData.message || errorData.error || 'Failed to send message';
+        throw new Error(`API Error (${res.status}): ${errorMsg}`);
+      }
+
+      return res.json();
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to send message: ${error.message}`);
+      }
+      throw new Error('Failed to send message: Unknown error');
+    }
   },
 
   async getChatHistory() {
-    const res = await fetch(`${API_BASE_URL}/conversations?phone=web-user&limit=100`);
-    if (!res.ok) throw new Error('Failed to fetch chat history');
-    return res.json();
+    const phone = getUserPhone();
+    
+    try {
+      // Fixed: Added /api prefix
+      const res = await fetch(
+        `${API_BASE_URL}/api/conversations?phone=${encodeURIComponent(phone)}&limit=100`
+      );
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch chat history');
+      }
+      
+      return res.json();
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+      // Return empty conversations on error instead of crashing
+      return { data: [] };
+    }
+  },
+
+  // Helper function to set custom phone if needed
+  setUserPhone(phone: string) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('user_phone', phone);
+    }
   },
 };

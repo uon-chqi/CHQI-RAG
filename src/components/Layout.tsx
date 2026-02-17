@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -17,6 +17,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { Input } from './ui/input';
+import { api } from '../lib/api';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -31,9 +32,41 @@ const navItems = [
 export default function Layout() {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const currentPage = navItems.find((item) => item.path === location.pathname);
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    try {
+      const response = await api.getConversations();
+      const conversations = response.data || [];
+      
+      // Search in conversations by phone number and message content
+      const filtered = conversations.filter((conv: any) =>
+        conv.patient_phone.toLowerCase().includes(query.toLowerCase()) ||
+        conv.message.toLowerCase().includes(query.toLowerCase())
+      ).slice(0, 5); // Limit to 5 results
+      
+      setSearchResults(filtered);
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    }
+  };
 
   const handleLinkClick = () => {
     setSidebarExpanded(false);
@@ -43,6 +76,18 @@ export default function Layout() {
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -179,22 +224,33 @@ export default function Layout() {
               <div className="relative hidden lg:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Search messages, patients..."
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Search..."
                   className="pl-9 w-48 xl:w-64 bg-gray-50/50 border-gray-200 text-sm"
                 />
-              </div>
-
-              {/* Notifications */}
-              <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                <Bell className="w-5 h-5 text-gray-600" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full"></span>
-              </button>
-
-              {/* User Avatar */}
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
+                
+                {/* Search Results Dropdown */}
+                {showSearchResults && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                    {searchResults.map((result) => (
+                      <Link
+                        key={result.id}
+                        to={`/conversations?phone=${encodeURIComponent(result.patient_phone)}`}
+                        onClick={() => {
+                          setSearchQuery('');
+                          setSearchResults([]);
+                          setShowSearchResults(false);
+                        }}
+                        className="block px-4 py-3 hover:bg-green-50 border-b last:border-b-0 transition-colors"
+                      >
+                        <div className="text-sm font-medium text-gray-900">{result.patient_phone}</div>
+                        <div className="text-xs text-gray-500 truncate">{result.message}</div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
