@@ -2,11 +2,9 @@
 
 A production-ready Healthcare RAG (Retrieval-Augmented Generation) system that enables patients to ask medical questions via SMS/WhatsApp and receive AI-powered responses based on uploaded medical documents.
 
-## 🎯 What We've Built
-
 This system uses **local embeddings** and **vector search** to retrieve relevant medical information from uploaded documents and generate intelligent, cited responses using AI.
 
-### Current Features (Completed ✅)
+### Current Feature
 
 - ✅ **Document Processing**: Upload PDF/DOCX medical documents
 - ✅ **Local Embeddings**: Using Xenova/all-MiniLM-L6-v2 (no API rate limits)
@@ -17,7 +15,7 @@ This system uses **local embeddings** and **vector search** to retrieve relevant
 - ✅ **Citation System**: Every response includes source references
 - ✅ **Session Management**: Track patient interactions
 
-### Coming Soon 🚀
+### to do
 
 - 🔜 **SMS Integration**: Africa's Talking API for SMS messaging
 - 🔜 **WhatsApp Integration**: Twilio API for WhatsApp messaging
@@ -26,7 +24,7 @@ This system uses **local embeddings** and **vector search** to retrieve relevant
 - 🔜 **Real-time Updates**: Live message feed
 - 🔜 **Multi-language Support**: Translation for local languages
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -66,7 +64,7 @@ This system uses **local embeddings** and **vector search** to retrieve relevant
 Future: Patient → SMS/WhatsApp → Webhooks → RAG Engine
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 project/
@@ -112,7 +110,7 @@ project/
 └── README.md                        # This file
 ```
 
-## 🚀 Tech Stack
+## Tech Stack
 
 ### Backend
 - **Runtime**: Node.js
@@ -136,7 +134,7 @@ project/
 - **WhatsApp**: Twilio API
 - **Real-time**: WebSocket or Server-Sent Events
 
-## ⚡ Quick Start
+## Quick Start
 
 ### 1. Install Dependencies
 ```bash
@@ -196,7 +194,7 @@ npm run dev
 ```
 Dashboard available at: http://localhost:5173
 
-## 📚 How the RAG System Works
+## How the RAG System Works
 
 ### 1. Document Upload & Processing
 
@@ -247,7 +245,7 @@ Dashboard available at: http://localhost:5173
 - Context injection from retrieved chunks
 - Temperature: 0.7 for balanced responses
 
-## 🧪 Testing the System
+## Testing the System
 
 ### Test Document Upload
 
@@ -301,7 +299,7 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
   }'
 ```
 
-## 📊 Database Schema
+## Database Schema
 
 ### Core Tables
 
@@ -350,7 +348,7 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 - expires_at (TIMESTAMPTZ)
 ```
 
-## 🔌 API Endpoints
+## API Endpoints
 
 ### Documents
 - `POST /api/documents/upload` - Upload PDF/DOCX
@@ -382,7 +380,7 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 - `POST /api/webhooks/sms/receive` - Africa's Talking SMS webhook
 - `POST /api/webhooks/whatsapp/receive` - Twilio WhatsApp webhook
 
-## 🎨 Dashboard Pages
+## Dashboard Pages
 
 1. **Dashboard** (`/`) - Overview with real-time stats
 2. **Documents** (`/documents`) - Upload and manage medical PDFs
@@ -391,7 +389,7 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 5. **Live Messages** (`/live`) - Real-time feed (coming soon)
 6. **System Health** (`/system`) - Service monitoring
 
-## 🔐 Security & Best Practices
+## Security & Best Practices
 
 ### Current Implementation
 - ✅ Environment variables for secrets
@@ -407,9 +405,9 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 - 🔜 HTTPS enforcement
 - 🔜 CORS configuration for production
 
-## 🚧 Roadmap & Next Steps
+## Roadmap & Next Steps
 
-### Phase 1: Core RAG ✅ (Completed)
+### Phase 1: Core RAG
 - [x] Document upload and processing
 - [x] PDF/DOCX text extraction
 - [x] Semantic chunking
@@ -420,7 +418,7 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 - [x] Citation system
 - [x] Admin dashboard
 
-### Phase 2: Messaging Integration 🔜 (Next)
+### Phase 2: Messaging Integration
 - [ ] Africa's Talking SMS setup
   - [ ] Account registration
   - [ ] Webhook configuration
@@ -434,7 +432,7 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 - [ ] Session management
 - [ ] Message queue for async processing
 
-### Phase 3: Enhanced Features 🔮 (Future)
+### Phase 3: Enhanced Features
 - [ ] Multi-language support (Swahili, etc.)
 - [ ] Voice message support
 - [ ] Image/document upload from patients
@@ -444,7 +442,7 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 - [ ] Analytics dashboard improvements
 - [ ] Export to CSV/PDF
 
-## 🛠️ Development Tools
+## Development Tools
 
 ### Useful Scripts
 
@@ -464,24 +462,6 @@ node update-vector-dimension.js
 # Test API endpoints
 npm run test  # (add test script)
 ```
-
-### Debugging
-
-Check terminal logs for:
-- `🔧 Loading local embedding model` - First time setup
-- `✅ Local embedding model loaded` - Ready to process
-- `📊 Found X relevant chunks` - Vector search results
-- `🎯 Top match score: 0.72` - Similarity score (0-1)
-
-## 📖 Additional Resources
-
-- **Setup Guide**: `SETUP_GUIDE.md` (if exists)
-- **API Testing**: `API_TESTING.md` (if exists)
-- **Database Guide**: `VECTOR_DATABASE_GUIDE.md`
-- **PostgreSQL Setup**: `POSTGRESQL_SETUP.md`
-4. **Document Library**: Upload and manage medical documents
-5. **Analytics**: Charts and insights
-6. **System Health**: Monitor all services
 
 ## Testing
 
@@ -537,30 +517,6 @@ curl -X POST http://localhost:5000/api/webhooks/whatsapp/receive \
   }'
 ```
 
-## 🤝 Contributing
-
-This project is open for improvements! Areas to contribute:
-- SMS/WhatsApp integration implementation
-- Multi-language support
-- Additional document formats
-- Enhanced analytics
-- Performance optimizations
-- Security enhancements
-- Test coverage
-
 ## 📝 License
 
 MIT License - Open source and free to use
-
-## 💡 About This Project
-
-Built as a healthcare RAG system to provide accessible medical information to patients via messaging platforms. The system uses local embeddings to eliminate API rate limits and costs while maintaining high-quality semantic search capabilities.
-
-**Key Innovation**: Using `@xenova/transformers` for local embeddings means unlimited document processing and queries without external API dependencies (except for AI response generation).
-
----
-
-**Stack**: React + TypeScript + Express + PostgreSQL + pgvector + Transformers.js + Google Gemini  
-**Status**: Core RAG ✅ | SMS Integration 🔜 | WhatsApp Integration 🔜  
-**Author**: Healthcare RAG Team  
-**Last Updated**: February 8, 2026
