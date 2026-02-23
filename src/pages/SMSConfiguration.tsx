@@ -206,14 +206,14 @@ export default function SMSConfiguration() {
   };
 
   return (
-    <div className="flex flex-col p-6 gap-6 bg-gray-50 min-h-screen">
-      <div className="flex justify-between items-center">
+    <div className="flex flex-col p-3 sm:p-4 md:p-6 gap-4 sm:gap-6 bg-gray-50 min-h-screen">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">SMS Configuration</h1>
-          <p className="text-gray-600 mt-2">Manage automated SMS messaging and budgets</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">SMS Configuration</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage automated SMS messaging and budgets</p>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">Facility ID:</label>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Facility ID:</label>
           <Input
             type="text"
             value={facilityId}
@@ -222,16 +222,16 @@ export default function SMSConfiguration() {
               localStorage.setItem('facilityId', e.target.value);
             }}
             placeholder="Enter facility ID"
-            className="w-48"
+            className="w-full sm:w-48"
           />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b">
+      <div className="flex gap-1 sm:gap-2 border-b overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
         <button
           onClick={() => setActiveTab('configuration')}
-          className={`px-4 py-2 font-medium ${
+          className={`px-3 sm:px-4 py-2 text-sm sm:text-base font-medium whitespace-nowrap ${
             activeTab === 'configuration'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-600'
@@ -241,7 +241,7 @@ export default function SMSConfiguration() {
         </button>
         <button
           onClick={() => setActiveTab('budgets')}
-          className={`px-4 py-2 font-medium ${
+          className={`px-3 sm:px-4 py-2 text-sm sm:text-base font-medium whitespace-nowrap ${
             activeTab === 'budgets'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-600'
@@ -251,7 +251,7 @@ export default function SMSConfiguration() {
         </button>
         <button
           onClick={() => setActiveTab('templates')}
-          className={`px-4 py-2 font-medium ${
+          className={`px-3 sm:px-4 py-2 text-sm sm:text-base font-medium whitespace-nowrap ${
             activeTab === 'templates'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-600'
@@ -271,10 +271,10 @@ export default function SMSConfiguration() {
             return (
               <div
                 key={riskLevel}
-                className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm"
+                className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 md:p-6 shadow-sm"
               >
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                <div className="flex justify-between items-center mb-3 sm:mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                     {riskLevel} Risk Patients
                   </h3>
                   <Button
@@ -309,10 +309,10 @@ export default function SMSConfiguration() {
             return (
               <div
                 key={riskLevel}
-                className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm"
+                className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 md:p-6 shadow-sm"
               >
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                <div className="flex justify-between items-center mb-3 sm:mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                     {riskLevel} Risk Budget
                   </h3>
                 </div>
@@ -338,8 +338,8 @@ export default function SMSConfiguration() {
 
       {/* Templates Tab */}
       {activeTab === 'templates' && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Templates</h3>
+        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 md:p-6 shadow-sm">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Message Templates</h3>
           <MessageTemplatesList templates={templates} facilityId={facilityId} onReload={loadTemplates} />
         </div>
       )}
@@ -389,9 +389,9 @@ function ConfigurationForm({ config, onSave, onChange }: {
     <div className="space-y-4">
       <div className="space-y-3">
         {localConfig.message_timing.map((timing: MessageTiming, index: number) => (
-          <div key={index} className="flex gap-3 items-center bg-gray-50 p-4 rounded">
+          <div key={index} className="flex flex-col sm:flex-row gap-3 sm:items-center bg-gray-50 p-3 sm:p-4 rounded">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Days Before Appointment
               </label>
               <Input
@@ -404,7 +404,7 @@ function ConfigurationForm({ config, onSave, onChange }: {
               />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Send Time (HH:MM)
               </label>
               <Input
@@ -414,7 +414,7 @@ function ConfigurationForm({ config, onSave, onChange }: {
                 className="w-full"
               />
             </div>
-            <div className="flex items-center gap-2 mt-6">
+            <div className="flex items-center gap-2 sm:mt-6">
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -493,7 +493,7 @@ function BudgetForm({ budget, onSave, onChange }: {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Messages Per Month (Facility Total)

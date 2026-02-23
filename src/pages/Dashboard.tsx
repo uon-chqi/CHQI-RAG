@@ -130,8 +130,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {statCards.map((card, index) => {
           const Icon = card.icon;
           return (
@@ -140,23 +140,24 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.03 }}
-              className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-card transition-shadow"
+              className="bg-white rounded-xl p-3 sm:p-4 md:p-6 border border-gray-200 hover:shadow-card transition-shadow"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">{card.label}</p>
-                  <h3 className="text-3xl font-bold text-gray-900">{card.value}</h3>
+              <div className="flex items-start justify-between mb-2 sm:mb-4">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600 mb-1 truncate">{card.label}</p>
+                  <h3 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900">{card.value}</h3>
                   {card.subtitle && (
-                    <p className="text-xs text-gray-500 mt-1">{card.subtitle}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500 mt-1 truncate">{card.subtitle}</p>
                   )}
                   {card.change !== null && card.change !== undefined && (
-                    <p className={`text-sm mt-2 ${card.change >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {card.change >= 0 ? '↑' : '↓'} {Math.abs(card.change)}% from yesterday
+                    <p className={`text-xs sm:text-sm mt-1 sm:mt-2 ${card.change >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {card.change >= 0 ? '↑' : '↓'} {Math.abs(card.change)}%
+                      <span className="hidden sm:inline"> from yesterday</span>
                     </p>
                   )}
                 </div>
-                <div className={`p-3 rounded-lg ${card.bgColor}`}>
-                  <Icon className={`w-6 h-6 ${card.iconColor}`} />
+                <div className={`p-1.5 sm:p-2 md:p-3 rounded-lg ${card.bgColor} flex-shrink-0`}>
+                  <Icon className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${card.iconColor}`} />
                 </div>
               </div>
             </motion.div>
@@ -165,8 +166,8 @@ export default function Dashboard() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">Recent Messages</h3>
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-base sm:text-lg font-bold text-gray-900">Recent Messages</h3>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-soft"></span>
             <span className="text-sm text-gray-600">Live</span>
@@ -174,7 +175,7 @@ export default function Dashboard() {
         </div>
         <div className="divide-y divide-gray-100">
           {recentMessages.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">No messages yet</div>
+            <div className="p-8 sm:p-12 text-center text-gray-500">No messages yet</div>
           ) : (
             recentMessages.map((message, index) => (
               <motion.div
@@ -182,7 +183,7 @@ export default function Dashboard() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: index * 0.05 }}
-                className="p-4 hover:bg-gray-50 transition-colors"
+                className="p-3 sm:p-4 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">

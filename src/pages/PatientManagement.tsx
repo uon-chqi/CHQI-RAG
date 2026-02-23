@@ -92,21 +92,21 @@ export default function PatientManagement() {
   };
 
   return (
-    <div className="flex flex-col p-6 gap-6 bg-gray-50 min-h-screen">
+    <div className="flex flex-col p-3 sm:p-4 md:p-6 gap-4 sm:gap-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Patient Management</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Patient Management</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
             View and manage patient information and risk levels
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-gray-500" />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
           <select
             value={selectedFacility}
             onChange={(e) => setSelectedFacility(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white min-w-[200px]"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-full sm:min-w-[200px]"
             aria-label="Select facility"
           >
             <option value="">All Facilities</option>
@@ -184,8 +184,8 @@ export default function PatientManagement() {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-        <div className="flex gap-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1 relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
@@ -197,11 +197,11 @@ export default function PatientManagement() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <select
               value={filterRiskLevel}
               onChange={(e) => setFilterRiskLevel(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-full sm:w-auto"
               aria-label="Filter by risk level"
             >
               <option value="">All Risk Levels</option>
@@ -215,22 +215,23 @@ export default function PatientManagement() {
 
       {/* Patients Table */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[700px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Patient Name</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Phone Number</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Risk Level</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Facility</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Joined</th>
+              <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Patient Name</th>
+              <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Phone Number</th>
+              <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Risk Level</th>
+              <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Facility</th>
+              <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 hidden md:table-cell">Email</th>
+              <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Status</th>
+              <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 hidden sm:table-cell">Joined</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500">
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                     Loading patients...
@@ -239,25 +240,25 @@ export default function PatientManagement() {
               </tr>
             ) : patients.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500 text-sm">
                   No patients found. Data will appear when patients are ingested from your facility system.
                 </td>
               </tr>
             ) : (
               patients.map((patient) => (
                 <tr key={patient.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium text-gray-900">
                     {patient.patient_name || 'N/A'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{patient.phone_number}</td>
-                  <td className="px-6 py-4 text-sm">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{patient.phone_number}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${riskLevelColor(patient.risk_level)}`}>
                       {patient.risk_level}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{patient.facility_id}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{patient.email || 'N/A'}</td>
-                  <td className="px-6 py-4 text-sm">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{patient.facility_id}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden md:table-cell">{patient.email || 'N/A'}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       patient.status === 'active'
                         ? 'bg-green-100 text-green-800'
@@ -266,7 +267,7 @@ export default function PatientManagement() {
                       {patient.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">
                     {new Date(patient.created_at).toLocaleDateString()}
                   </td>
                 </tr>
@@ -277,9 +278,9 @@ export default function PatientManagement() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-600">
-              Showing page {page} of {totalPages} ({total} patients)
+          <div className="flex flex-col sm:flex-row items-center justify-between px-3 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 gap-2">
+            <p className="text-xs sm:text-sm text-gray-600">
+              Page {page} of {totalPages} ({total} patients)
             </p>
             <div className="flex gap-1">
               <button
@@ -301,12 +302,13 @@ export default function PatientManagement() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 flex gap-3">
         <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-        <div className="text-sm text-blue-800">
+        <div className="text-xs sm:text-sm text-blue-800">
           <p className="font-medium mb-1">How to ingest patient data</p>
           <p>
             Post patient data to the{' '}
@@ -328,11 +330,11 @@ function StatCard({ title, value, icon, color }: {
   color: string;
 }) {
   return (
-    <div className={`${color} rounded-lg border border-gray-200 p-5`}>
+    <div className={`${color} rounded-lg border border-gray-200 p-3 sm:p-5`}>
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
+          <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">{title}</p>
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">{value}</p>
         </div>
         <div className="text-gray-400">{icon}</div>
       </div>
