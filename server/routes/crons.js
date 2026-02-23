@@ -18,24 +18,22 @@ const verifyCronKey = (req, res, next) => {
   next();
 };
 
-/**
- * POST /api/crons/process-appointment-reminders
- * 
- * Process and send automated appointment reminder messages
- * Should be called periodically (e.g., every hour) via a cron job
- * 
- * Headers required:
- *   X-Cron-Key: your-secret-cron-key (set via CRON_KEY environment variable)
- * 
- * Example cron job setup (Linux):
- *   # Every hour
- *   0 * * * * curl -X POST http://localhost:5000/api/crons/process-appointment-reminders \
- *     -H "X-Cron-Key: your-secret-cron-key"
- * 
- * Example for every 30 minutes:
- *   */30 * * * * curl -X POST http://localhost:5000/api/crons/process-appointment-reminders \
- *     -H "X-Cron-Key: your-secret-cron-key"
- */
+// POST /api/crons/process-appointment-reminders
+//
+// Process and send automated appointment reminder messages
+// Should be called periodically (e.g., every hour) via a cron job
+//
+// Headers required:
+//   X-Cron-Key: your-secret-cron-key (set via CRON_KEY environment variable)
+//
+// Example cron job setup (Linux):
+//   Every hour:
+//   0 * * * * curl -X POST http://localhost:5000/api/crons/process-appointment-reminders \
+//     -H "X-Cron-Key: your-secret-cron-key"
+//
+//   Every 30 minutes:
+//   0,30 * * * * curl -X POST http://localhost:5000/api/crons/process-appointment-reminders \
+//     -H "X-Cron-Key: your-secret-cron-key"
 router.post('/process-appointment-reminders', verifyCronKey, async (req, res) => {
   try {
     console.log('[Cron] Starting appointment reminder processing');
