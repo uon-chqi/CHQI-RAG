@@ -13,7 +13,7 @@
  */
 
 import { query } from '../config/database.js';
-import { sms } from './sms.js';
+import { sendSMS } from './sms.js';
 
 // Helper to calculate days between two dates
 const daysBetween = (date1, date2) => {
@@ -185,7 +185,7 @@ export const smsScheduler = {
 
         // Send message
         try {
-          const sendResult = await sms.sendMessage(phone_number, formattedMessage);
+          const sendResult = await sendSMS(phone_number, formattedMessage);
 
           // Log sent message
           await query(
@@ -328,7 +328,7 @@ export const smsScheduler = {
 
       // Send response message
       try {
-        const sendResult = await sms.sendMessage(phone_number, formattedMessage);
+        const sendResult = await sendSMS(phone_number, formattedMessage);
 
         await query(
           `INSERT INTO sms_sent_messages 
