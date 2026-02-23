@@ -8,6 +8,10 @@ import conversationRoutes from './routes/conversations.js';
 import documentRoutes from './routes/documents.js';
 import analyticsRoutes from './routes/analytics.js';
 import healthRoutes from './routes/health.js';
+import facilitiesRoutes from './routes/facilities.js';
+import smsAdminRoutes from './routes/sms-admin.js';
+import cronsRoutes from './routes/crons.js';
+import patientsRoutes from './routes/patients.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -26,6 +30,10 @@ app.use('/api/conversations', conversationRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/system', healthRoutes);
+app.use('/api/facilities', facilitiesRoutes);
+app.use('/api/sms-admin', smsAdminRoutes);
+app.use('/api/crons', cronsRoutes);
+app.use('/api/patients', patientsRoutes);
 
 app.use(errorHandler);
 

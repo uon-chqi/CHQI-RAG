@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageSquare, Clock, TrendingUp, Users, FileText, Zap } from 'lucide-react';
+import { MessageSquare, Clock, TrendingUp, Users, FileText, Zap, Building2, UserCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api, Conversation, DashboardStats } from '../lib/api';
 import { Badge } from '../components/ui/badge';
@@ -17,6 +17,9 @@ export default function Dashboard() {
     weekChange: 0,
     accuracyChange: 0,
     responseChange: 0,
+    totalFacilities: 0,
+    totalPatients: 0,
+    riskBreakdown: { high: 0, medium: 0, low: 0 },
   });
   const [recentMessages, setRecentMessages] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,6 +101,24 @@ export default function Dashboard() {
       iconColor: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
     },
+    {
+      label: 'Facilities',
+      value: (stats.totalFacilities ?? 0).toLocaleString(),
+      subtitle: 'registered',
+      change: null,
+      icon: Building2,
+      iconColor: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+    },
+    {
+      label: 'Total Patients',
+      value: (stats.totalPatients ?? 0).toLocaleString(),
+      subtitle: `H:${stats.riskBreakdown?.high ?? 0} M:${stats.riskBreakdown?.medium ?? 0} L:${stats.riskBreakdown?.low ?? 0}`,
+      change: null,
+      icon: UserCheck,
+      iconColor: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+    },
   ];
 
   if (loading) {
@@ -110,7 +131,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card, index) => {
           const Icon = card.icon;
           return (
@@ -118,7 +139,7 @@ export default function Dashboard() {
               key={card.label}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              transition={{ delay: index * 0.03 }}
               className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-card transition-shadow"
             >
               <div className="flex items-start justify-between mb-4">

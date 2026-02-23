@@ -7,6 +7,8 @@ import Conversations from './pages/Conversations';
 import Documents from './pages/Documents';
 import Analytics from './pages/Analytics';
 import SystemHealth from './pages/SystemHealth';
+import SMSConfiguration from './pages/SMSConfiguration';
+import PatientManagement from './pages/PatientManagement';
 
 export default function App() {
   return (
@@ -20,6 +22,8 @@ export default function App() {
           <Route path="documents" element={<Documents />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="system" element={<SystemHealth />} />
+          <Route path="sms-configuration" element={<SMSConfiguration />} />
+          <Route path="patient-management" element={<PatientManagement />} />
         </Route>
       </Routes>
     </Router>

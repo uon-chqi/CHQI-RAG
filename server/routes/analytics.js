@@ -12,52 +12,84 @@ router.get('/dashboard-stats', async (req, res) => {
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const todayResult = await query(
-      'SELECT COUNT(*) as count FROM conversations WHERE created_at >= $1',
-      [today.toISOString()]
+    // Single query using CTEs — replaces 6 sequential queries
+    const result = await query(
+      `WITH
+        today_msgs AS (
+          SELECT COUNT(*) AS count FROM conversations WHERE created_at >= $1
+        ),
+        yesterday_msgs AS (
+          SELECT COUNT(*) AS count FROM conversations WHERE created_at >= $2 AND created_at < $1
+        ),
+        week_msgs AS (
+          SELECT COUNT(*) AS count FROM conversations WHERE created_at >= $3
+        ),
+        avg_resp AS (
+          SELECT COALESCE(AVG(response_time_ms), 0) AS avg FROM conversations WHERE response_time_ms IS NOT NULL AND created_at >= $3
+        ),
+        active_patients AS (
+          SELECT COUNT(DISTINCT patient_phone) AS count FROM conversations WHERE created_at >= $3
+        ),
+        docs AS (
+          SELECT COUNT(*) AS count, COALESCE(SUM(total_chunks), 0) AS chunks FROM documents WHERE status = 'completed'
+        ),
+        facility_count AS (
+          SELECT COUNT(*) AS count FROM facilities WHERE status = 'active'
+        ),
+        patient_count AS (
+          SELECT COUNT(*) AS count FROM patients WHERE status = 'active'
+        ),
+        risk_counts AS (
+          SELECT
+            COUNT(*) FILTER (WHERE risk_level = 'HIGH') AS high,
+            COUNT(*) FILTER (WHERE risk_level = 'MEDIUM') AS medium,
+            COUNT(*) FILTER (WHERE risk_level = 'LOW') AS low
+          FROM patients WHERE status = 'active'
+        )
+      SELECT
+        (SELECT count FROM today_msgs) AS today_messages,
+        (SELECT count FROM yesterday_msgs) AS yesterday_messages,
+        (SELECT count FROM week_msgs) AS week_messages,
+        (SELECT avg FROM avg_resp) AS avg_response_time,
+        (SELECT count FROM active_patients) AS active_patients,
+        (SELECT count FROM docs) AS docs_indexed,
+        (SELECT chunks FROM docs) AS total_chunks,
+        (SELECT count FROM facility_count) AS total_facilities,
+        (SELECT count FROM patient_count) AS total_patients,
+        (SELECT high FROM risk_counts) AS high_risk,
+        (SELECT medium FROM risk_counts) AS medium_risk,
+        (SELECT low FROM risk_counts) AS low_risk`,
+      [today.toISOString(), yesterday.toISOString(), weekAgo.toISOString()]
     );
-    const yesterdayResult = await query(
-      'SELECT COUNT(*) as count FROM conversations WHERE created_at >= $1 AND created_at < $2',
-      [yesterday.toISOString(), today.toISOString()]
-    );
-    const weekResult = await query(
-      'SELECT COUNT(*) as count FROM conversations WHERE created_at >= $1',
-      [weekAgo.toISOString()]
-    );
-    const avgResponseResult = await query(
-      'SELECT AVG(response_time_ms) as avg FROM conversations WHERE response_time_ms IS NOT NULL AND created_at >= $1',
-      [weekAgo.toISOString()]
-    );
-    const activePatientsResult = await query(
-      'SELECT COUNT(DISTINCT patient_phone) as count FROM conversations WHERE created_at >= $1',
-      [weekAgo.toISOString()]
-    );
-    const docsResult = await query('SELECT COUNT(*) as count, COALESCE(SUM(total_chunks), 0) as chunks FROM documents WHERE status = $1', ['completed']);
 
-    const todayMessages = parseInt(todayResult.rows[0]?.count || 0);
-    const yesterdayMessages = parseInt(yesterdayResult.rows[0]?.count || 0);
-    const weekMessages = parseInt(weekResult.rows[0]?.count || 0);
-    const avgResponseTime = parseFloat(avgResponseResult.rows[0]?.avg || 0);
-    const activePatients = parseInt(activePatientsResult.rows[0]?.count || 0);
-    const docsIndexed = parseInt(docsResult.rows[0]?.count || 0);
-    const totalChunks = parseInt(docsResult.rows[0]?.chunks || 0);
-
-    const todayChange = yesterdayMessages > 0 ? Math.round(((todayMessages - yesterdayMessages) / yesterdayMessages) * 100) : 0;
+    const row = result.rows[0];
+    const todayMessages = parseInt(row.today_messages || 0);
+    const yesterdayMessages = parseInt(row.yesterday_messages || 0);
+    const todayChange = yesterdayMessages > 0
+      ? Math.round(((todayMessages - yesterdayMessages) / yesterdayMessages) * 100)
+      : 0;
 
     res.json({
       success: true,
       data: {
         todayMessages,
-        weekMessages,
+        weekMessages: parseInt(row.week_messages || 0),
         accuracyRate: 92,
-        avgResponseTime: Math.round(avgResponseTime),
-        activePatients,
-        docsIndexed,
-        totalChunks,
+        avgResponseTime: Math.round(parseFloat(row.avg_response_time || 0)),
+        activePatients: parseInt(row.active_patients || 0),
+        docsIndexed: parseInt(row.docs_indexed || 0),
+        totalChunks: parseInt(row.total_chunks || 0),
         todayChange,
         weekChange: 15,
         accuracyChange: 3,
         responseChange: -5,
+        totalFacilities: parseInt(row.total_facilities || 0),
+        totalPatients: parseInt(row.total_patients || 0),
+        riskBreakdown: {
+          high: parseInt(row.high_risk || 0),
+          medium: parseInt(row.medium_risk || 0),
+          low: parseInt(row.low_risk || 0),
+        },
       },
     });
   } catch (error) {

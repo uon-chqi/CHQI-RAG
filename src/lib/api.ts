@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://chqi-rag.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://chqi-rag.onrender.com';
 
 export interface Conversation {
   id: string;
@@ -59,6 +59,13 @@ export interface DashboardStats {
   weekChange: number;
   accuracyChange: number;
   responseChange: number;
+  totalFacilities: number;
+  totalPatients: number;
+  riskBreakdown: {
+    high: number;
+    medium: number;
+    low: number;
+  };
 }
 
 // Get or create a persistent user ID
@@ -90,11 +97,26 @@ export const api = {
   },
 
   async getDashboardStats(): Promise<DashboardStats> {
-    // Fixed: Added /api prefix
     const res = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats`);
     if (!res.ok) throw new Error('Failed to fetch dashboard stats');
     const data = await res.json();
-    return data.data;
+    const d = data.data || {};
+    return {
+      todayMessages: d.todayMessages ?? 0,
+      weekMessages: d.weekMessages ?? 0,
+      accuracyRate: d.accuracyRate ?? 0,
+      avgResponseTime: d.avgResponseTime ?? 0,
+      activePatients: d.activePatients ?? 0,
+      docsIndexed: d.docsIndexed ?? 0,
+      totalChunks: d.totalChunks ?? 0,
+      todayChange: d.todayChange ?? 0,
+      weekChange: d.weekChange ?? 0,
+      accuracyChange: d.accuracyChange ?? 0,
+      responseChange: d.responseChange ?? 0,
+      totalFacilities: d.totalFacilities ?? 0,
+      totalPatients: d.totalPatients ?? 0,
+      riskBreakdown: d.riskBreakdown ?? { high: 0, medium: 0, low: 0 },
+    };
   },
 
   async getSystemHealth() {
@@ -166,5 +188,41 @@ export const api = {
     if (typeof window !== 'undefined') {
       localStorage.setItem('user_phone', phone);
     }
+  },
+
+  // ── Patient & Facility APIs ──────────────────────────────
+
+  async getPatients(params: {
+    facility_id?: string;
+    risk_level?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  } = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.facility_id) searchParams.set('facility_id', params.facility_id);
+    if (params.risk_level) searchParams.set('risk_level', params.risk_level);
+    if (params.search) searchParams.set('search', params.search);
+    if (params.page) searchParams.set('page', String(params.page));
+    if (params.limit) searchParams.set('limit', String(params.limit));
+
+    const res = await fetch(`${API_BASE_URL}/api/patients?${searchParams}`);
+    if (!res.ok) throw new Error('Failed to fetch patients');
+    return res.json();
+  },
+
+  async getPatientStats(facilityId?: string) {
+    const url = facilityId
+      ? `${API_BASE_URL}/api/patients/stats?facility_id=${encodeURIComponent(facilityId)}`
+      : `${API_BASE_URL}/api/patients/stats`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch patient stats');
+    return res.json();
+  },
+
+  async getFacilities() {
+    const res = await fetch(`${API_BASE_URL}/api/patients/facilities`);
+    if (!res.ok) throw new Error('Failed to fetch facilities');
+    return res.json();
   },
 };

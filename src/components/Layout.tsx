@@ -15,6 +15,8 @@ import {
   Menu,
   X,
   MessageCircle,
+  Settings,
+  Users,
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { api } from '../lib/api';
@@ -27,6 +29,8 @@ const navItems = [
   { path: '/documents', icon: FileText, label: 'Document Library' },
   { path: '/analytics', icon: BarChart3, label: 'Analytics' },
   { path: '/system', icon: Activity, label: 'System Health' },
+  { path: '/sms-configuration', icon: Settings, label: 'SMS Configuration' },
+  { path: '/patient-management', icon: Users, label: 'Patient Management' },
 ];
 
 export default function Layout() {
