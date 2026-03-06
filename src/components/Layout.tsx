@@ -17,6 +17,8 @@ import {
   MessageCircle,
   Settings,
   Users,
+  Building2,
+  Shield,
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { api } from '../lib/api';
@@ -31,6 +33,8 @@ const navItems = [
   { path: '/system', icon: Activity, label: 'System Health' },
   { path: '/sms-configuration', icon: Settings, label: 'SMS Configuration' },
   { path: '/patient-management', icon: Users, label: 'Patient Management' },
+  { path: '/admin/hierarchy', icon: Building2, label: 'Org Hierarchy' },
+  { path: '/admin/users', icon: Shield, label: 'User Management' },
 ];
 
 export default function Layout() {

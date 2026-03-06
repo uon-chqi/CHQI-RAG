@@ -34,17 +34,17 @@ router.get('/dashboard-stats', async (req, res) => {
           SELECT COUNT(*) AS count, COALESCE(SUM(total_chunks), 0) AS chunks FROM documents WHERE status = 'completed'
         ),
         facility_count AS (
-          SELECT COUNT(*) AS count FROM facilities WHERE status = 'active'
+          SELECT COUNT(*) AS count FROM facilities WHERE is_active = TRUE
         ),
         patient_count AS (
-          SELECT COUNT(*) AS count FROM patients WHERE status = 'active'
+          SELECT COUNT(*) AS count FROM patients WHERE is_active = TRUE
         ),
         risk_counts AS (
           SELECT
-            COUNT(*) FILTER (WHERE risk_level = 'HIGH') AS high,
-            COUNT(*) FILTER (WHERE risk_level = 'MEDIUM') AS medium,
-            COUNT(*) FILTER (WHERE risk_level = 'LOW') AS low
-          FROM patients WHERE status = 'active'
+            COUNT(*) FILTER (WHERE risk_level = 'high') AS high,
+            COUNT(*) FILTER (WHERE risk_level = 'medium') AS medium,
+            COUNT(*) FILTER (WHERE risk_level = 'low') AS low
+          FROM patients WHERE is_active = TRUE
         )
       SELECT
         (SELECT count FROM today_msgs) AS today_messages,

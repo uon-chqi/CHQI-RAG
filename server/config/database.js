@@ -44,3 +44,5 @@ export const query = async (text, params) => {
     throw error;
   }
 };
+
+export default { pool, query };

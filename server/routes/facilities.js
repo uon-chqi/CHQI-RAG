@@ -1,5 +1,17 @@
+// ================================================================
+// FACILITIES API ROUTES
+// ================================================================
+// API endpoints for facility management with RBAC
+
 import express from 'express';
-import { query } from '../config/database.js';
+import FacilityService from '../services/facilityManagement.js';
+import AccessControlService from '../services/accessControl.js';
+import {
+  requireFacilityAccess,
+  requireCountyAdmin,
+  requireSuperAdmin,
+  auditDataAccess
+} from '../middleware/authorization.js';
 
 const router = express.Router();
 

@@ -12,6 +12,7 @@ import facilitiesRoutes from './routes/facilities.js';
 import smsAdminRoutes from './routes/sms-admin.js';
 import cronsRoutes from './routes/crons.js';
 import patientsRoutes from './routes/patients.js';
+import adminRoutes from './routes/admin.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -34,6 +35,7 @@ app.use('/api/facilities', facilitiesRoutes);
 app.use('/api/sms-admin', smsAdminRoutes);
 app.use('/api/crons', cronsRoutes);
 app.use('/api/patients', patientsRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use(errorHandler);
 
