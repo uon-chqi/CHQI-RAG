@@ -15,7 +15,7 @@
 
 @layer utilities {
   .gradient-primary {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    background: linear-gradient(135deg, #0A1B3A 0%, #1a3a7a 100%);
   }
 
   .animate-pulse-soft {
@@ -52,7 +52,7 @@
 }
 
 :root {
-  --sidebar-bg: #0f5233;
-  --sidebar-hover: #14663f;
-  --sidebar-active: #059669;
+  --navy: #0A1B3A;
+  --navy-light: #162d5e;
+  --navy-accent: #1a3a7a;
 }

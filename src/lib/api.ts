@@ -1,4 +1,14 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
+// Helper to get auth token and build headers
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('chqi_token') : null;
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+}
 
 export interface Conversation {
   id: string;
@@ -83,21 +93,19 @@ function getUserPhone(): string {
 
 export const api = {
   async getConversations() {
-    // Fixed: Added /api prefix
-    const res = await fetch(`${API_BASE_URL}/api/conversations`);
+    const res = await fetch(`${API_BASE_URL}/api/conversations`, { headers: authHeaders() });
     if (!res.ok) throw new Error('Failed to fetch conversations');
     return res.json();
   },
 
   async getDocuments() {
-    // Fixed: Added /api prefix
-    const res = await fetch(`${API_BASE_URL}/api/documents`);
+    const res = await fetch(`${API_BASE_URL}/api/documents`, { headers: authHeaders() });
     if (!res.ok) throw new Error('Failed to fetch documents');
     return res.json();
   },
 
   async getDashboardStats(): Promise<DashboardStats> {
-    const res = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats`);
+    const res = await fetch(`${API_BASE_URL}/api/analytics/dashboard-stats`, { headers: authHeaders() });
     if (!res.ok) throw new Error('Failed to fetch dashboard stats');
     const data = await res.json();
     const d = data.data || {};

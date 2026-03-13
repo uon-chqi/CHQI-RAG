@@ -4,12 +4,18 @@ import { motion } from 'framer-motion';
 import { api, Conversation } from '../lib/api';
 import { MessageCard } from '../components/MessageCard';
 import { Badge } from '../components/ui/badge';
+import { useAuth } from '../context/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function LiveMessages() {
+  const { token, isSuperAdmin } = useAuth();
   const [messages, setMessages] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'sms' | 'whatsapp'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'sent' | 'error' | 'pending'>('all');
+
+  const authHeaders = () => ({ 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) });
 
   useEffect(() => {
     fetchMessages();
@@ -19,8 +25,14 @@ export default function LiveMessages() {
 
   const fetchMessages = async () => {
     try {
-      const response = await api.getConversations();
-      setMessages(response.data?.slice(0, 50) || []);
+      if (isSuperAdmin) {
+        const response = await api.getConversations();
+        setMessages(response.data?.slice(0, 50) || []);
+      } else {
+        const res = await fetch(`${API_BASE}/api/facility/messages`, { headers: authHeaders() });
+        const json = await res.json();
+        setMessages(json.data?.slice(0, 50) || []);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
@@ -43,9 +55,9 @@ export default function LiveMessages() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 bg-white rounded-xl border border-gray-200 px-4 py-3">
         <span className="text-sm font-medium text-gray-600 mr-2">Channel:</span>
         {(['all', 'sms', 'whatsapp'] as const).map((ch) => (
           <Badge

@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { api, Conversation } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function Conversations() {
+  const { token, isSuperAdmin } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchPhone, setSearchPhone] = useState('');
@@ -25,22 +29,35 @@ export default function Conversations() {
     fetchConversations();
   }, [searchPhone, filterChannel]);
 
+  const authHeaders = () => ({ 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) });
+
   const fetchConversations = async () => {
     try {
-      const response = await api.getConversations();
-      let filtered = response.data || [];
-
-      if (searchPhone) {
-        filtered = filtered.filter((conv: Conversation) =>
-          conv.patient_phone.toLowerCase().includes(searchPhone.toLowerCase())
-        );
+      let data: Conversation[];
+      if (isSuperAdmin) {
+        const response = await api.getConversations();
+        data = response.data || [];
+      } else {
+        const params = new URLSearchParams();
+        if (searchPhone) params.set('phone', searchPhone);
+        if (filterChannel !== 'all') params.set('channel', filterChannel);
+        const res = await fetch(`${API_BASE}/api/facility/conversations?${params}`, { headers: authHeaders() });
+        const json = await res.json();
+        data = json.data || [];
       }
 
-      if (filterChannel !== 'all') {
-        filtered = filtered.filter((conv: Conversation) => conv.channel === filterChannel);
+      if (isSuperAdmin) {
+        if (searchPhone) {
+          data = data.filter((conv: Conversation) =>
+            conv.patient_phone.toLowerCase().includes(searchPhone.toLowerCase())
+          );
+        }
+        if (filterChannel !== 'all') {
+          data = data.filter((conv: Conversation) => conv.channel === filterChannel);
+        }
       }
 
-      setConversations(filtered.slice(0, 100));
+      setConversations(data.slice(0, 100));
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
@@ -78,37 +95,37 @@ export default function Conversations() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-navy-900 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-green-900 mb-1">Conversation History</h2>
-        <p className="text-green-600">Search and filter past patient interactions</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">Conversation History</h2>
+        <p className="text-gray-500">Search and filter past patient interactions</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-green-200 p-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center gap-4">
           <div className="flex-1 relative">
-            <Search className="w-5 h-5 text-green-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by phone number..."
               value={searchPhone}
               onChange={(e) => setSearchPhone(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-900/30"
             />
           </div>
 
           <div className="relative">
-            <Filter className="w-5 h-5 text-green-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Filter className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <select
               value={filterChannel}
               onChange={(e) => setFilterChannel(e.target.value)}
-              className="pl-10 pr-8 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600 appearance-none bg-white"
+              className="pl-10 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-900/30 appearance-none bg-white"
             >
               <option value="all">All Channels</option>
               <option value="sms">SMS Only</option>
@@ -118,41 +135,41 @@ export default function Conversations() {
 
           <button
             onClick={exportToCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            className="px-4 py-2 bg-navy-900 text-white rounded-lg hover:bg-navy-800 transition-colors font-medium"
           >
             Export CSV
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-green-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-green-50 border-b border-green-200">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Time</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Phone</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Channel</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Message</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Response</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Status</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">Time (ms)</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Time</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Phone</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Channel</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Message</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Response</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Time (ms)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-green-100">
+            <tbody className="divide-y divide-gray-100">
               {conversations.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-green-600">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                     No conversations found
                   </td>
                 </tr>
               ) : (
                 conversations.map((conv) => (
-                  <tr key={conv.id} className="hover:bg-green-50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-green-700 whitespace-nowrap">
+                  <tr key={conv.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                       {new Date(conv.created_at).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-sm text-green-900 font-medium">
+                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">
                       {maskPhone(conv.patient_phone)}
                     </td>
                     <td className="px-4 py-3">
@@ -166,10 +183,10 @@ export default function Conversations() {
                         {conv.channel.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-green-800 max-w-xs truncate">
+                    <td className="px-4 py-3 text-sm text-gray-800 max-w-xs truncate">
                       {conv.message}
                     </td>
-                    <td className="px-4 py-3 text-sm text-green-600 max-w-xs truncate">
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
                       {conv.response || '-'}
                     </td>
                     <td className="px-4 py-3">
@@ -185,7 +202,7 @@ export default function Conversations() {
                         {conv.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-green-700">
+                    <td className="px-4 py-3 text-sm text-gray-700">
                       {conv.response_time_ms || '-'}
                     </td>
                   </tr>
