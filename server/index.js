@@ -17,6 +17,7 @@ import patientsRoutes from './routes/patients.js';
 import adminRoutes from './routes/admin.js';
 import authRoutes from './routes/auth.js';
 import facilityRoutes from './routes/facility.js';
+import countyRoutes from './routes/county.js';
 import { initDailySync } from './services/dailySync.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -47,6 +48,7 @@ app.use('/api/crons', cronsRoutes);
 app.use('/api/patients', patientsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/facility', facilityRoutes);
+app.use('/api/county', countyRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

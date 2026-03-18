@@ -1,55 +1,63 @@
 import { useState, useEffect } from 'react';
-import { Search, Users, ShieldCheck, Building2, MapPin, RefreshCw } from 'lucide-react';
+import { Search, Users, Building2, MapPin, RefreshCw, Plus, X, Trash2 } from 'lucide-react';
 import { Input } from '../components/ui/input';
+import { useAuth } from '../context/AuthContext';
 
 interface UserRecord {
   id: string;
   name: string;
   email: string;
+  role: string;
   is_active: boolean;
   created_at: string;
   facility_name: string | null;
   facility_code: string | null;
   county_name: string | null;
-  roles: string[];
+}
+
+interface County {
+  id: string;
+  name: string;
+  code: string;
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const ROLE_COLORS: Record<string, string> = {
   super_admin: 'bg-red-100 text-red-700',
-  national_admin: 'bg-purple-100 text-purple-700',
-  county_admin: 'bg-blue-100 text-blue-700',
-  facility_admin: 'bg-green-100 text-green-700',
-  clinician: 'bg-teal-100 text-teal-700',
-  data_entry: 'bg-gray-100 text-gray-700',
-  viewer: 'bg-yellow-100 text-yellow-700',
-  api_service: 'bg-orange-100 text-orange-700',
+  national: 'bg-purple-100 text-purple-700',
+  county: 'bg-blue-100 text-blue-700',
 };
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Admin',
-  national_admin: 'National Admin',
-  county_admin: 'County Admin',
-  facility_admin: 'Facility Admin',
-  clinician: 'Clinician',
-  data_entry: 'Data Entry',
-  viewer: 'Viewer',
-  api_service: 'API Service',
+  national: 'National User',
+  county: 'County Manager',
 };
 
 export default function UserManagement() {
+  const { token } = useAuth();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [counties, setCounties] = useState<County[]>([]);
+  const [formData, setFormData] = useState({ email: '', password: '', role: 'national', county_id: '' });
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const authHeaders = (): Record<string, string> => ({
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: 'Bearer ' + token } : {}),
+  });
 
   const loadUsers = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/admin/users-list`);
+      const res = await fetch(`${API_BASE}/api/admin/users-list`, { headers: authHeaders() });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Unknown error');
       setUsers(json.data);
@@ -60,10 +68,18 @@ export default function UserManagement() {
     }
   };
 
-  useEffect(() => { loadUsers(); }, []);
+  const loadCounties = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/counties-list`, { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) setCounties(json.data);
+    } catch (_) {}
+  };
+
+  useEffect(() => { loadUsers(); loadCounties(); }, []);
 
   const allRoles = Array.from(
-    new Set(users.flatMap((u) => u.roles))
+    new Set(users.map((u) => u.role).filter(Boolean))
   ).sort();
 
   const filtered = users.filter((u) => {
@@ -74,9 +90,46 @@ export default function UserManagement() {
       u.email?.toLowerCase().includes(q) ||
       u.facility_name?.toLowerCase().includes(q) ||
       u.county_name?.toLowerCase().includes(q);
-    const matchRole = !roleFilter || u.roles.includes(roleFilter);
+    const matchRole = !roleFilter || u.role === roleFilter;
     return matchSearch && matchRole;
   });
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/users`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(formData),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      setShowForm(false);
+      setFormData({ email: '', password: '', role: 'national', county_id: '' });
+      loadUsers();
+    } catch (err: any) {
+      setFormError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async (id: string, email: string) => {
+    if (!confirm(`Delete user "${email}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      loadUsers();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -86,14 +139,83 @@ export default function UserManagement() {
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
           <p className="text-sm text-gray-500 mt-1">All system users and their assigned roles</p>
         </div>
-        <button
-          onClick={loadUsers}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-navy-900 text-white rounded-lg hover:bg-navy-800"
+          >
+            <Plus size={14} />
+            Create User
+          </button>
+          <button
+            onClick={loadUsers}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Create User Form */}
+      {showForm && (
+        <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Create New User</h2>
+            <button onClick={() => { setShowForm(false); setFormError(''); }} className="text-gray-400 hover:text-gray-600">
+              <X size={18} />
+            </button>
+          </div>
+          <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="user@example.com" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required minLength={6} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <select
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value, county_id: '' })}
+              >
+                <option value="national">National User</option>
+                <option value="county">County Manager</option>
+              </select>
+            </div>
+            {formData.role === 'county' && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">County</label>
+                <select
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                  value={formData.county_id}
+                  onChange={(e) => setFormData({ ...formData, county_id: e.target.value })}
+                  required
+                >
+                  <option value="">Select a county…</option>
+                  {counties.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {formError && (
+              <div className="md:col-span-2 bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-2 text-sm">{formError}</div>
+            )}
+            <div className="md:col-span-2 flex justify-end gap-2">
+              <button type="button" onClick={() => { setShowForm(false); setFormError(''); }} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-navy-900 text-white rounded-lg hover:bg-navy-800 disabled:opacity-50">
+                {saving ? 'Creating…' : 'Create User'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -138,7 +260,7 @@ export default function UserManagement() {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="text-left px-5 py-3 font-medium text-gray-600">User</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Roles</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">
                 <span className="flex items-center gap-1"><Building2 size={13} /> Facility</span>
               </th>
@@ -147,19 +269,20 @@ export default function UserManagement() {
               </th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Created</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600"></th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="text-center py-16 text-gray-400">Loading users…</td>
+                <td colSpan={7} className="text-center py-16 text-gray-400">Loading users…</td>
               </tr>
             )}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-16 text-gray-400">
+                <td colSpan={7} className="text-center py-16 text-gray-400">
                   {users.length === 0
-                    ? 'No users found. Run the seed script to add initial accounts.'
+                    ? 'No users found. Click Create User to add one.'
                     : 'No users match your search.'}
                 </td>
               </tr>
@@ -179,17 +302,12 @@ export default function UserManagement() {
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex flex-wrap gap-1">
-                    {u.roles.length === 0 ? (
-                      <span className="text-gray-400 text-xs">No role</span>
+                    {u.role ? (
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-700'}`}>
+                        {ROLE_LABELS[u.role] || u.role}
+                      </span>
                     ) : (
-                      u.roles.map((r) => (
-                        <span
-                          key={r}
-                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${ROLE_COLORS[r] || 'bg-gray-100 text-gray-700'}`}
-                        >
-                          {ROLE_LABELS[r] || r}
-                        </span>
-                      ))
+                      <span className="text-gray-400 text-xs">No role</span>
                     )}
                   </div>
                 </td>
@@ -211,6 +329,17 @@ export default function UserManagement() {
                 </td>
                 <td className="px-4 py-4 text-xs text-gray-400">
                   {new Date(u.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-4 text-right">
+                  {u.role !== 'super_admin' && (
+                    <button
+                      onClick={() => handleDeleteUser(u.id, u.email)}
+                      className="text-gray-400 hover:text-red-600 transition p-1 rounded hover:bg-red-50"
+                      title="Delete user"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, AlertCircle, Building2, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { Search, Filter, AlertCircle, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
@@ -33,10 +33,8 @@ interface Facility {
   last_sync_at: string | null;
 }
 
-const emptyForm = { first_name: '', last_name: '', phone: '', email: '', ccc_number: '', date_of_birth: '', gender: 'Male', risk_level: 'LOW', next_appointment_date: '', physical_address: '' };
-
 export default function PatientManagement() {
-  const { user, token, isSuperAdmin, isFacility } = useAuth();
+  const { user, token, isSuperAdmin, isNational, isCounty } = useAuth();
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [selectedFacility, setSelectedFacility] = useState('');
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -47,16 +45,12 @@ export default function PatientManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState({ total: 0, byRiskLevel: { HIGH: 0, MEDIUM: 0, LOW: 0 } });
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState('');
 
   const authHeaders = (): Record<string, string> => ({ 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) });
 
-  // Load facilities list on mount (admin only)
+  // Load facilities list on mount (admin/national only)
   useEffect(() => {
-    if (isSuperAdmin) {
+    if (isSuperAdmin || isNational) {
       api.getFacilities().then((res) => setFacilities(res.data || [])).catch(() => setFacilities([]));
     }
   }, []);
@@ -64,13 +58,13 @@ export default function PatientManagement() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      if (isFacility) {
+      if (isCounty) {
         const params = new URLSearchParams();
         if (searchTerm) params.set('search', searchTerm);
         if (filterRiskLevel) params.set('risk_level', filterRiskLevel);
         params.set('page', String(page));
         params.set('limit', '25');
-        const res = await fetch(API_BASE + '/api/facility/patients?' + params, { headers: authHeaders() });
+        const res = await fetch(API_BASE + '/api/county/patients?' + params, { headers: authHeaders() });
         const json = await res.json();
         setPatients(json.data || []);
         setTotalPages(json.pagination?.pages || 1);
@@ -91,28 +85,10 @@ export default function PatientManagement() {
         setStats(statsRes.data || { total: 0, byRiskLevel: { HIGH: 0, MEDIUM: 0, LOW: 0 } });
       }
     } catch { setPatients([]); } finally { setLoading(false); }
-  }, [selectedFacility, filterRiskLevel, searchTerm, page, isFacility]);
+  }, [selectedFacility, filterRiskLevel, searchTerm, page, isCounty]);
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { setPage(1); }, [selectedFacility, filterRiskLevel, searchTerm]);
-
-  const handleAddPatient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.first_name.trim() || !form.last_name.trim() || !form.phone.trim()) {
-      setFormError('First name, last name and phone are required');
-      return;
-    }
-    setSaving(true);
-    setFormError('');
-    try {
-      const res = await fetch(API_BASE + '/api/facility/patients', { method: 'POST', headers: authHeaders(), body: JSON.stringify(form) });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to add patient');
-      setForm(emptyForm);
-      setShowForm(false);
-      loadData();
-    } catch (err: any) { setFormError(err.message); } finally { setSaving(false); }
-  };
 
   const riskLevelColor = (level: string) => {
     switch ((level || '').toUpperCase()) {
@@ -137,17 +113,11 @@ export default function PatientManagement() {
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Patient Management</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
-            {isFacility ? 'Manage your facility\u2019s patient records' : 'View and manage patient information and risk levels'}
+            {isCounty ? 'View patient records across facilities in your county' : 'View and manage patient information and risk levels'}
           </p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {isFacility && (
-            <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 px-4 py-2 bg-navy-900 text-white rounded-lg hover:bg-navy-800 transition-colors font-medium text-sm">
-              {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              {showForm ? 'Cancel' : 'Add Patient'}
-            </button>
-          )}
-          {isSuperAdmin && (
+          {(isSuperAdmin || isNational) && (
             <>
               <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
               <select value={selectedFacility} onChange={(e) => setSelectedFacility(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white w-full sm:min-w-[200px]" aria-label="Select facility">
@@ -159,32 +129,8 @@ export default function PatientManagement() {
         </div>
       </div>
 
-      {/* Add Patient Form (facility only) */}
-      {showForm && isFacility && (
-        <form onSubmit={handleAddPatient} className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Add New Patient</h3>
-          {formError && <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{formError}</div>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label><input value={form.first_name} onChange={e => setForm({...form, first_name: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/30" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label><input value={form.last_name} onChange={e => setForm({...form, last_name: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/30" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label><input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="+254..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/30" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">CCC Number</label><input value={form.ccc_number} onChange={e => setForm({...form, ccc_number: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/30" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/30" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label><input type="date" value={form.date_of_birth} onChange={e => setForm({...form, date_of_birth: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/30" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Gender</label><select value={form.gender} onChange={e => setForm({...form, gender: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/30"><option>Male</option><option>Female</option><option>Other</option></select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Risk Level</label><select value={form.risk_level} onChange={e => setForm({...form, risk_level: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-navy-900/30"><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Next Appointment</label><input type="date" value={form.next_appointment_date} onChange={e => setForm({...form, next_appointment_date: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/30" /></div>
-            <div className="sm:col-span-2 lg:col-span-3"><label className="block text-sm font-medium text-gray-700 mb-1">Physical Address</label><input value={form.physical_address} onChange={e => setForm({...form, physical_address: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/30" /></div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => { setShowForm(false); setForm(emptyForm); setFormError(''); }} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-navy-900 text-white rounded-lg hover:bg-navy-800 text-sm font-medium disabled:opacity-50">{saving ? 'Saving...' : 'Save Patient'}</button>
-          </div>
-        </form>
-      )}
-
-      {/* Facilities summary cards (admin only, when "All Facilities" is selected) */}
-      {isSuperAdmin && !selectedFacility && facilities.length > 0 && (
+      {/* Facilities summary cards (admin/national only, when "All Facilities" is selected) */}
+      {(isSuperAdmin || isNational) && !selectedFacility && facilities.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {facilities.map((f) => (
             <button key={f.facility_id} onClick={() => setSelectedFacility(f.facility_id)} className="bg-white rounded-lg border border-gray-200 p-4 text-left hover:border-emerald-400 hover:shadow-sm transition-all">
@@ -237,9 +183,9 @@ export default function PatientManagement() {
               <tr>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Patient Name</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Phone</th>
-                {isFacility && <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">CCC Number</th>}
+                <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">CCC Number</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Risk Level</th>
-                {isSuperAdmin && <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Facility</th>}
+                <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Facility</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 hidden md:table-cell">Next Appt</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 hidden sm:table-cell">Joined</th>
               </tr>
@@ -248,15 +194,15 @@ export default function PatientManagement() {
               {loading ? (
                 <tr><td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500"><div className="flex items-center justify-center gap-2"><div className="w-5 h-5 border-2 border-navy-900 border-t-transparent rounded-full animate-spin" />Loading patients...</div></td></tr>
               ) : patients.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500 text-sm">{isFacility ? 'No patients yet. Click "Add Patient" to add your first patient.' : 'No patients found.'}</td></tr>
+                <tr><td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500 text-sm">No patients found.</td></tr>
               ) : (
                 patients.map((patient) => (
                   <tr key={patient.id} className="hover:bg-gray-50">
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium text-gray-900">{displayName(patient)}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{displayPhone(patient)}</td>
-                    {isFacility && <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 font-mono">{patient.ccc_number || '\u2014'}</td>}
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 font-mono">{patient.ccc_number || '\u2014'}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm"><span className={'px-2 py-1 rounded-full text-xs font-medium ' + riskLevelColor(patient.risk_level)}>{(patient.risk_level || 'LOW').toUpperCase()}</span></td>
-                    {isSuperAdmin && <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{patient.facility_id}</td>}
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{(patient as any).facility_name || patient.facility_id || '\u2014'}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden md:table-cell">{patient.next_appointment_date ? new Date(patient.next_appointment_date).toLocaleDateString() : '\u2014'}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{new Date(patient.created_at).toLocaleDateString()}</td>
                   </tr>

@@ -10,22 +10,28 @@ const superAdminNav = [
   { path: '/live', label: 'Live Messages' },
   { path: '/documents', label: 'Document Library' },
   { path: '/sms-configuration', label: 'SMS Config' },
-  { path: '/patient-management', label: 'Patients' },
-  { path: '/organisations', label: 'Organisations' },
+  { path: '/organisations', label: 'Facilities' },
+  { path: '/admin/users', label: 'Users' },
 ];
 
-const facilityNav = [
+const nationalNav = [
+  { path: '/', label: 'Home' },
+  { path: '/conversations', label: 'Conversations' },
+  { path: '/live', label: 'Live Messages' },
+  { path: '/organisations', label: 'Facilities' },
+];
+
+const countyNav = [
   { path: '/', label: 'Dashboard' },
   { path: '/conversations', label: 'Conversations' },
-  { path: '/patient-management', label: 'Patients' },
 ];
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const { user, logout, isSuperAdmin } = useAuth();
+  const { user, logout, isSuperAdmin, isNational, isCounty } = useAuth();
 
-  const navItems = isSuperAdmin ? superAdminNav : facilityNav;
+  const navItems = isSuperAdmin ? superAdminNav : isNational ? nationalNav : countyNav;
   const isActive = (path: string) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
   return (
@@ -121,7 +127,7 @@ export default function Layout() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-cyan-300 flex items-center justify-center text-navy-900 font-black text-sm shadow-md">
               C
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">CHQI Health</span>
+            <span className="text-white font-bold text-lg tracking-tight">CHQI</span>
           </Link>
           <button
             onClick={() => setMobileOpen(false)}

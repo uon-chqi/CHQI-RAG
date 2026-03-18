@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -56,7 +57,7 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Organisations / Facilities</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Facilities</h1>
               <p className="text-sm text-gray-500 mt-1">
                 {summary ? `${summary.total_facilities} facilities across ${summary.total_counties} counties` : 'Loading...'}
               </p>
@@ -135,8 +136,9 @@ export default function AdminDashboard() {
                   <p>County: <span className="text-navy-700 font-medium">{fac.county_name || '\u2014'}</span></p>
                   {fac.email && <p className="text-gray-400 text-xs truncate">{fac.email}</p>}
                 </div>
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <span className="text-xs text-gray-400">{fac.patient_count || 0} patients</span>
+                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">{fac.patient_count || 0} clients</span>
+                  <Link to={`/organisations/${fac.id}`} className="text-xs font-semibold text-navy-900 hover:underline">More →</Link>
                 </div>
               </div>
             ))}

@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function LiveMessages() {
-  const { token, isSuperAdmin } = useAuth();
+  const { token, isSuperAdmin, isNational, isCounty } = useAuth();
   const [messages, setMessages] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'sms' | 'whatsapp'>('all');
@@ -25,13 +25,15 @@ export default function LiveMessages() {
 
   const fetchMessages = async () => {
     try {
-      if (isSuperAdmin) {
+      if (isSuperAdmin || isNational) {
         const response = await api.getConversations();
         setMessages(response.data?.slice(0, 50) || []);
-      } else {
-        const res = await fetch(`${API_BASE}/api/facility/messages`, { headers: authHeaders() });
+      } else if (isCounty) {
+        const res = await fetch(`${API_BASE}/api/county/conversations`, { headers: authHeaders() });
         const json = await res.json();
         setMessages(json.data?.slice(0, 50) || []);
+      } else {
+        setMessages([]);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);

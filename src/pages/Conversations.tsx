@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export default function Conversations() {
-  const { token, isSuperAdmin } = useAuth();
+  const { token, isSuperAdmin, isNational, isCounty } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchPhone, setSearchPhone] = useState('');
@@ -34,19 +34,21 @@ export default function Conversations() {
   const fetchConversations = async () => {
     try {
       let data: Conversation[];
-      if (isSuperAdmin) {
+      if (isSuperAdmin || isNational) {
         const response = await api.getConversations();
         data = response.data || [];
-      } else {
+      } else if (isCounty) {
         const params = new URLSearchParams();
         if (searchPhone) params.set('phone', searchPhone);
         if (filterChannel !== 'all') params.set('channel', filterChannel);
-        const res = await fetch(`${API_BASE}/api/facility/conversations?${params}`, { headers: authHeaders() });
+        const res = await fetch(`${API_BASE}/api/county/conversations?${params}`, { headers: authHeaders() });
         const json = await res.json();
         data = json.data || [];
+      } else {
+        data = [];
       }
 
-      if (isSuperAdmin) {
+      if (isSuperAdmin || isNational) {
         if (searchPhone) {
           data = data.filter((conv: Conversation) =>
             conv.patient_phone.toLowerCase().includes(searchPhone.toLowerCase())

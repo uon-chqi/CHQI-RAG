@@ -1,8 +1,7 @@
 // ================================================================
 // AUTH ROUTES
 // ================================================================
-// POST /api/auth/login         - Login (super_admin or facility)
-// POST /api/auth/register      - Register a new facility account
+// POST /api/auth/login         - Login (super_admin, county, national)
 // GET  /api/auth/me            - Get current user profile
 // ================================================================
 
@@ -90,7 +89,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid email or password' });
     }
 
-    // Fetch facility info if applicable
+    // Fetch facility/county info
     let facilityName = null;
     let facilityCode = null;
     let countyName = null;
@@ -110,10 +109,15 @@ router.post('/login', async (req, res) => {
           countyName = facResult.rows[0].county_name;
         }
       } catch (_) {}
+    } else if (user.county_id) {
+      try {
+        const countyResult = await db.query('SELECT name FROM counties WHERE id = $1', [user.county_id]);
+        if (countyResult.rows.length > 0) countyName = countyResult.rows[0].name;
+      } catch (_) {}
     }
 
     const token = jwt.sign(
-      { id: user.id, role: user.role, email: user.email, facility_id: user.facility_id },
+      { id: user.id, role: user.role, email: user.email, facility_id: user.facility_id, county_id: user.county_id },
       JWT_SECRET,
       { expiresIn: TOKEN_EXPIRY }
     );
@@ -138,98 +142,6 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ success: false, error: 'Login failed' });
-  }
-});
-
-/**
- * POST /api/auth/register
- * Register a new facility user
- * Body: { name, email, password, facility_name, facility_code, county_name }
- */
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, password, facility_name, facility_code, county_name } = req.body;
-
-    if (!name || !email || !password || !facility_name) {
-      return res.status(400).json({
-        success: false,
-        error: 'name, email, password and facility_name are required',
-      });
-    }
-
-    if (password.length < 8) {
-      return res.status(400).json({ success: false, error: 'Password must be at least 8 characters' });
-    }
-
-    const emailLower = email.toLowerCase().trim();
-
-    // Check duplicate email
-    const existing = await db.query('SELECT id FROM auth_users WHERE email = $1', [emailLower]);
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ success: false, error: 'Email already registered' });
-    }
-
-    // Find or create county
-    let countyId = null;
-    if (county_name) {
-      const countyRes = await db.query(
-        `INSERT INTO counties (name, code, is_active)
-         VALUES ($1, $2, TRUE)
-         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-         RETURNING id`,
-        [county_name.trim(), county_name.toUpperCase().substring(0, 5)]
-      );
-      countyId = countyRes.rows[0].id;
-    }
-
-    // Find or create facility
-    const facilityRes = await db.query(
-      `INSERT INTO facilities (name, code, county_id, email, operational_status, is_active)
-       VALUES ($1, $2, $3, $4, 'operational', TRUE)
-       ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
-       RETURNING id`,
-      [facility_name.trim(), (facility_code || facility_name.substring(0, 6)).toUpperCase(), countyId, emailLower]
-    );
-    const facilityId = facilityRes.rows[0].id;
-
-    // Hash password
-    const salt = await bcrypt.genSalt(12);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    // Create auth_user
-    const userRes = await db.query(
-      `INSERT INTO auth_users (name, email, password_hash, role, facility_id, county_id, is_active)
-       VALUES ($1, $2, $3, 'facility', $4, $5, TRUE)
-       RETURNING id, name, email, role, facility_id, county_id`,
-      [name.trim(), emailLower, passwordHash, facilityId, countyId]
-    );
-
-    const user = userRes.rows[0];
-
-    const token = jwt.sign(
-      { id: user.id, role: user.role, email: user.email, facility_id: user.facility_id },
-      JWT_SECRET,
-      { expiresIn: TOKEN_EXPIRY }
-    );
-
-    res.status(201).json({
-      success: true,
-      data: {
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          facility_id: user.facility_id,
-          facility_name,
-          county_name: county_name || null,
-        },
-      },
-    });
-  } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ success: false, error: error.message || 'Registration failed' });
   }
 });
 
@@ -262,6 +174,11 @@ router.get('/me', authenticateToken, async (req, res) => {
           facilityCode = r.rows[0].code;
           countyName = r.rows[0].county_name;
         }
+      } catch (_) {}
+    } else if (user.county_id) {
+      try {
+        const r = await db.query('SELECT name FROM counties WHERE id = $1', [user.county_id]);
+        if (r.rows.length > 0) countyName = r.rows[0].name;
       } catch (_) {}
     }
 

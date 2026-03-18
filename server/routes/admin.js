@@ -4,6 +4,7 @@
 // API endpoints for super admin dashboard and centralized reporting
 
 import express from 'express';
+import bcrypt from 'bcrypt';
 import db from '../config/database.js';
 import { authenticateToken, requireSuperAdmin } from '../middleware/auth.js';
 
@@ -266,7 +267,10 @@ router.get('/overview', async (req, res) => {
         f.id, f.name, f.code, f.facility_type, f.operational_status, f.is_active,
         f.county_id, f.email,
         c.name AS county_name, c.code AS county_code,
-        (SELECT COUNT(*) FROM patients WHERE facility_id = f.id) AS patient_count
+        (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id) AS patient_count,
+        (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id AND risk_level = 'high') AS high_risk,
+        (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id AND risk_level = 'medium') AS medium_risk,
+        (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id AND risk_level = 'low') AS low_risk
       FROM facilities f
       LEFT JOIN counties c ON f.county_id = c.id
       ORDER BY c.name, f.name
@@ -326,6 +330,84 @@ router.get('/users-list', authenticateToken, requireSuperAdmin, async (req, res)
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Users list error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/users
+ * Create a new user (super admin only)
+ */
+router.post('/users', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { email, password, role, county_id } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !role) {
+      return res.status(400).json({ success: false, error: 'Email, password, and role are required' });
+    }
+
+    // Validate role
+    const validRoles = ['national', 'county'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ success: false, error: 'Role must be "national" or "county"' });
+    }
+
+    // County role requires county_id
+    if (role === 'county' && !county_id) {
+      return res.status(400).json({ success: false, error: 'County ID is required for county managers' });
+    }
+
+    // Check for existing user
+    const existing = await db.query('SELECT id FROM auth_users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ success: false, error: 'A user with this email already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const name = email.split('@')[0];
+
+    const result = await db.query(
+      `INSERT INTO auth_users (name, email, password_hash, role, county_id, is_active)
+       VALUES ($1, $2, $3, $4, $5, TRUE)
+       RETURNING id, name, email, role, county_id, is_active, created_at`,
+      [name, email, passwordHash, role, role === 'county' ? county_id : null]
+    );
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/users/:id
+ * Delete a user (super admin only)
+ */
+router.delete('/users/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query('DELETE FROM auth_users WHERE id = $1 RETURNING id, email', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/counties-list
+ * Returns all active counties (for dropdowns)
+ */
+router.get('/counties-list', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const result = await db.query('SELECT id, name, code FROM counties WHERE is_active = TRUE ORDER BY name');
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });

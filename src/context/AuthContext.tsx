@@ -6,7 +6,7 @@ export interface AuthUser {
   id: string;
   name: string;
   email?: string;
-  role: 'super_admin' | 'national' | 'county' | 'facility';
+  role: 'super_admin' | 'national' | 'county';
   facility_id?: string;
   facility_name?: string;
   facility_code?: string;
@@ -19,19 +19,10 @@ interface AuthContextValue {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string, username?: string) => Promise<void>;
-  registerFacility: (data: RegisterData) => Promise<void>;
   logout: () => void;
   isSuperAdmin: boolean;
-  isFacility: boolean;
-}
-
-interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  facility_name: string;
-  facility_code?: string;
-  county_name?: string;
+  isNational: boolean;
+  isCounty: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -80,25 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('chqi_user', JSON.stringify(newUser));
   };
 
-  const registerFacility = async (formData: RegisterData) => {
-    const res = await fetch(`${API_BASE}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Registration failed');
-    }
-
-    const { token: newToken, user: newUser } = data.data;
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem('chqi_token', newToken);
-    localStorage.setItem('chqi_user', JSON.stringify(newUser));
-  };
-
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -113,10 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         loading,
         login,
-        registerFacility,
         logout,
         isSuperAdmin: user?.role === 'super_admin',
-        isFacility: user?.role === 'facility',
+        isNational: user?.role === 'national',
+        isCounty: user?.role === 'county',
       }}
     >
       {children}

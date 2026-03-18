@@ -14,6 +14,7 @@ import SMSConfiguration from './pages/SMSConfiguration';
 import PatientManagement from './pages/PatientManagement';
 import AdminDashboard from './pages/AdminDashboard';
 import UserManagement from './pages/UserManagement';
+import FacilityDetail from './pages/FacilityDetail';
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="sms-configuration" element={<SMSConfiguration />} />
             <Route path="patient-management" element={<PatientManagement />} />
             <Route path="organisations" element={<AdminDashboard />} />
+            <Route path="organisations/:id" element={<FacilityDetail />} />
             <Route path="admin/hierarchy" element={<AdminDashboard />} />
             <Route path="admin/users" element={<UserManagement />} />
           </Route>
