@@ -458,4 +458,60 @@ router.put('/message-templates/:id', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/sms-admin/followup-templates
+ * Get follow-up response templates for two-way SMS
+ */
+router.get('/followup-templates', async (req, res) => {
+  try {
+    const { facility_id } = req.query;
+    if (!facility_id) {
+      return res.status(400).json({ success: false, error: 'facility_id is required' });
+    }
+    const result = await query(
+      `SELECT template_type, body AS message_text FROM message_templates 
+       WHERE facility_id = $1 AND template_type LIKE 'followup_%' OR (facility_id = $1 AND template_type IN ('confirm_yes','why_missed','out_of_town','too_busy','still_have_meds','clinic_not_friendly','other_reason','delegate_yes','delegate_no'))
+       ORDER BY template_type`,
+      [facility_id]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching followup templates:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch followup templates' });
+  }
+});
+
+/**
+ * POST /api/sms-admin/followup-templates
+ * Save a follow-up response template (upsert by facility_id + template_type)
+ */
+router.post('/followup-templates', async (req, res) => {
+  try {
+    const { facility_id, template_type, message_text } = req.body;
+    if (!facility_id || !template_type || !message_text) {
+      return res.status(400).json({ success: false, error: 'facility_id, template_type, and message_text are required' });
+    }
+    // Check if exists
+    const existing = await query(
+      'SELECT id FROM message_templates WHERE facility_id = $1 AND template_type = $2',
+      [facility_id, template_type]
+    );
+    if (existing.rows.length > 0) {
+      const result = await query(
+        'UPDATE message_templates SET body = $1, updated_at = now() WHERE id = $2 RETURNING *',
+        [message_text, existing.rows[0].id]
+      );
+      return res.json({ success: true, data: result.rows[0] });
+    }
+    const result = await query(
+      `INSERT INTO message_templates (facility_id, template_type, body, enabled) VALUES ($1, $2, $3, true) RETURNING *`,
+      [facility_id, template_type, message_text]
+    );
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error saving followup template:', error);
+    res.status(500).json({ success: false, error: 'Failed to save followup template' });
+  }
+});
+
 export default router;
