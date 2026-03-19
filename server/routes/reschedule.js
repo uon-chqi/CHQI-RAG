@@ -7,11 +7,11 @@ const router = express.Router();
 /**
  * GET /api/reschedule-requests
  * List all reschedule requests (for Provider Dashboard).
- * Query params: ?status=pending|approved|rejected&facility_id=UUID
+ * Query params: ?status=pending|approved|rejected&facility_id=UUID&mfl_code=STRING
  */
 router.get('/', async (req, res) => {
   try {
-    const { status, facility_id } = req.query;
+    const { status, facility_id, mfl_code } = req.query;
     let sql = `
       SELECT r.*, 
         p.first_name, p.last_name, p.phone, p.ccc_number, p.risk_level, p.gender,
@@ -32,6 +32,10 @@ router.get('/', async (req, res) => {
     if (facility_id) {
       params.push(facility_id);
       conditions.push(`r.facility_id = $${params.length}`);
+    }
+    if (mfl_code) {
+      params.push(mfl_code);
+      conditions.push(`f.code = $${params.length}`);
     }
 
     if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
