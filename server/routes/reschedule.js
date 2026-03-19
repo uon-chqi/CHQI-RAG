@@ -140,11 +140,15 @@ router.put('/:id', async (req, res) => {
     }
 
     // Log the sent message
-    await pool.query(`
-      INSERT INTO sms_sent_messages
-      (patient_id, facility_id, message_type, phone_number, message_body, channel, status)
-      VALUES ($1, $2, $3, $4, $5, 'sms', 'sent')
-    `, [request.patient_id, request.facility_id, `reschedule_${action}`, request.phone_number, smsMessage]);
+    try {
+      await pool.query(`
+        INSERT INTO sms_sent_messages
+        (patient_id, facility_id, message_type, phone_number, message_body, channel, status)
+        VALUES ($1, $2::text, $3, $4, $5, 'sms', 'sent')
+      `, [request.patient_id, request.facility_id, `reschedule_${action}`, request.phone_number, smsMessage]);
+    } catch (logErr) {
+      console.error('Failed to log SMS message:', logErr);
+    }
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
