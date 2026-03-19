@@ -36,18 +36,11 @@ export default function AdminDashboard() {
 
   const filtered = countyFilter ? facilities.filter(f => f.county_id === countyFilter) : facilities;
 
-  const statusColor = (s: string) => {
-    const v = (s || '').toLowerCase();
-    if (v === 'operational' || v === 'active') return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20';
-    if (v === 'partial') return 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20';
-    return 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20';
-  };
-
   const summaryCards = summary ? [
-    { label: 'Counties', value: summary.total_counties, accent: 'border-violet-500' },
-    { label: 'Facilities', value: summary.total_facilities, accent: 'border-blue-500' },
-    { label: 'Patients', value: summary.total_patients, accent: 'border-emerald-500' },
-    { label: 'Users', value: summary.total_users, accent: 'border-amber-500' },
+    { label: 'Counties', value: summary.total_counties},
+    { label: 'Facilities', value: summary.total_facilities},
+    { label: 'Patients', value: summary.total_patients},
+    { label: 'Users', value: summary.total_users},
   ] : [];
 
   return (
@@ -81,7 +74,7 @@ export default function AdminDashboard() {
         {summary && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {summaryCards.map(card => (
-              <div key={card.label} className={`bg-white rounded-xl shadow-sm border-t-4 ${card.accent} p-5 text-center`}>
+              <div key={card.label} className={`bg-white rounded-xl shadow-sm ${card.accent} p-5 text-center`}>
                 <span className="block text-3xl font-extrabold text-gray-900">{card.value}</span>
                 <span className="text-xs text-gray-500 font-medium mt-1">{card.label}</span>
               </div>
@@ -127,16 +120,12 @@ export default function AdminDashboard() {
               <div key={fac.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg hover:border-gray-300 transition-all group">
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-bold text-gray-900 text-base group-hover:text-navy-900 transition-colors">{fac.name}</h3>
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusColor(fac.operational_status)}`}>
-                    {(fac.operational_status || 'active').toLowerCase()}
-                  </span>
                 </div>
                 <div className="space-y-1.5 text-sm text-gray-500">
-                  <p>Code: <span className="font-mono text-gray-700">{fac.code || '\u2014'}</span></p>
-                  <p>County: <span className="text-navy-700 font-medium">{fac.county_name || '\u2014'}</span></p>
-                  {fac.email && <p className="text-gray-400 text-xs truncate">{fac.email}</p>}
+                  <p>MFL Code: <span className="font-mono text-gray-700">{fac.code || '—'}</span></p>
+                  <p>County: <span className="text-navy-700 font-medium">{fac.county_name || '—'}</span></p>
                 </div>
-                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                <div className="mt-3 pt-3 border-gray-100 flex items-center justify-between">
                   <span className="text-xs text-gray-400">{fac.patient_count || 0} clients</span>
                   <Link to={`/organisations/${fac.id}`} className="text-xs font-semibold text-navy-900 hover:underline">More →</Link>
                 </div>

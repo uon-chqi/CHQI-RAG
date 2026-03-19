@@ -106,4 +106,21 @@ router.post('/test-appointment-reminder', verifyCronKey, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/crons/process-missed-appointments
+ * 
+ * Send follow-up SMS to patients who missed their appointment yesterday.
+ * Should be called once daily (e.g., every morning at 9 AM).
+ */
+router.post('/process-missed-appointments', verifyCronKey, async (req, res) => {
+  try {
+    console.log('[Cron] Starting missed appointment processing');
+    const sent = await smsScheduler.processMissedAppointments();
+    res.json({ success: true, message: `Sent ${sent} missed appointment messages`, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('[Cron] Error processing missed appointments:', error);
+    res.status(500).json({ success: false, error: 'Failed to process missed appointments' });
+  }
+});
+
 export default router;

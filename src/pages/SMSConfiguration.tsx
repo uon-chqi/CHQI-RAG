@@ -239,13 +239,10 @@ export default function SMSConfiguration() {
                             onChange={e => updateRow(i, 'message_text', e.target.value)}
                             rows={2}
                             placeholder={row.is_two_way
-                              ? 'Hi {{patient_name}}, your appointment at {{facility_name}} is tomorrow. Will you attend? Reply: 1=Yes, 2=No'
-                              : 'Hello {{patient_name}}, reminder: appointment at {{facility_name}} on {{appointment_date}} ({{days_until}} days away).'}
+                              ? 'e.g. Hi John, your appointment at Kisumu Hospital is tomorrow. Will you attend? Reply: 1=Yes, 2=No'
+                              : 'e.g. Hello John, reminder: your appointment at Kisumu Hospital is on 4th April 2026 (7 days away).'}
                             className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm resize-none"
                           />
-                          <p className="text-[10px] text-gray-400 mt-0.5">
-                            Use: {'{{patient_name}}'} {'{{appointment_date}}'} {'{{facility_name}}'} {'{{days_until}}'}
-                          </p>
                         </div>
                       </div>
                     ))}
@@ -271,82 +268,247 @@ export default function SMSConfiguration() {
         </div>
       )}
 
-      {/* ── TWO-WAY SMS FLOW TAB (read-only, hardcoded) ── */}
+      {/* ── TWO-WAY SMS FLOW TAB — Visual Flowcharts ── */}
       {activeTab === 'followup' && (
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 text-sm text-blue-800">
-            <strong>Hardcoded flow</strong> — these messages are sent automatically based on client replies to the 1-day appointment reminder. No configuration needed.
+        <div className="space-y-6">
+          {/* ── FLOW 1: Pre-Appointment (1 day before) ── */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 bg-blue-50">
+              <h3 className="text-sm font-bold text-blue-900">Flow 1 — Pre-Appointment Confirmation</h3>
+              <p className="text-[11px] text-blue-700 mt-0.5">Sent 1 day before appointment &middot; two-way enabled</p>
+            </div>
+            <div className="p-6 overflow-x-auto">
+              <div className="flex flex-col items-center min-w-[700px]">
+                <StartNode label="1 Day Before Appointment" />
+                <Arrow />
+                <FNode color="blue">&ldquo;Your appointment is on [date]. Will you attend?  1: Yes  2: No&rdquo;</FNode>
+                <Arrow />
+                <Diamond>Reply?</Diamond>
+                <div className="flex w-full justify-center gap-16 mt-1">
+                  <div className="flex flex-col items-center">
+                    <BranchLabel>1 — Yes</BranchLabel>
+                    <Arrow short />
+                    <FNode color="green">&ldquo;Great! See you then.&rdquo;</FNode>
+                    <Arrow short />
+                    <EndNode />
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <BranchLabel>2 — No</BranchLabel>
+                    <Arrow short />
+                    <FNode color="amber">&ldquo;Kindly let us know why:&rdquo;<br/>1: Out of town &middot; 2: Too Busy &middot; 3: Still have meds<br/>4: Clinic not friendly &middot; 5: Other</FNode>
+                    <Arrow short />
+                    <Diamond>Reason?</Diamond>
+                    <div className="flex gap-4 mt-1 flex-wrap justify-center">
+                      <ReasonBranch label="1 — Out of town" response="Pick medication from any clinic near you." />
+                      <div className="flex flex-col items-center">
+                        <BranchLabel small>2 — Too Busy</BranchLabel>
+                        <Arrow short />
+                        <FNode color="amber" small>&ldquo;Can you send someone?  1: Yes  2: No&rdquo;</FNode>
+                        <Arrow short />
+                        <Diamond small>Reply?</Diamond>
+                        <div className="flex gap-4 mt-1">
+                          <div className="flex flex-col items-center">
+                            <BranchLabel small>Yes</BranchLabel><Arrow short />
+                            <FNode color="green" small>&ldquo;Thank you.&rdquo;</FNode><Arrow short /><EndNode />
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <BranchLabel small>No</BranchLabel><Arrow short />
+                            <FNode color="rose" small>&ldquo;Please visit clinic ASAP.&rdquo;</FNode><Arrow short /><EndNode />
+                          </div>
+                        </div>
+                      </div>
+                      <ReasonBranch label="3 — Still have meds" response="Return before meds run out." />
+                      <ReasonBranch label="4 — Clinic not friendly" response="Clinic is improving, please return." />
+                      <ReasonBranch label="5 — Other" response="Please visit clinic ASAP." />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Step 1: Initial two-way question */}
-          <FlowCard
-            icon="💬" label="STEP 1 — System sends (1 day before, two-way enabled)"
-            message={'Your appointment is on [date]. Will you be able to attend?\n1: Yes\n2: No'}
-          />
-
-          {/* Branch: Yes */}
-          <FlowBranch reply="Client replies 1 (Yes)">
-            <FlowCard icon="✅" label="System responds" message="Great! See you then." terminal />
-          </FlowBranch>
-
-          {/* Branch: No */}
-          <FlowBranch reply="Client replies 2 (No)">
-            <FlowCard
-              icon="❓" label="System asks reason"
-              message={'Kindly let us know why:\n1: Out of town\n2: Too Busy\n3: Still have medication\n4: Clinic not friendly\n5: Other'}
-            />
-            <div className="ml-6 space-y-2 mt-2">
-              <FlowBranch reply="1 — Out of town">
-                <FlowCard icon="🏥" label="System responds" message="Pick medication from any clinic near you." terminal />
-              </FlowBranch>
-              <FlowBranch reply="2 — Too Busy">
-                <FlowCard icon="🤝" label="System asks" message={'Can you send someone to pick the medication?\n1: Yes\n2: No'} />
-                <div className="ml-6 space-y-2 mt-2">
-                  <FlowBranch reply="1 — Yes">
-                    <FlowCard icon="✅" label="System responds" message="Thank you." terminal />
-                  </FlowBranch>
-                  <FlowBranch reply="2 — No">
-                    <FlowCard icon="ℹ️" label="System responds" message="Please visit the clinic as soon as you can." terminal />
-                  </FlowBranch>
-                </div>
-              </FlowBranch>
-              <FlowBranch reply="3 — Still have medication">
-                <FlowCard icon="💊" label="System responds" message="Ensure you return to clinic before you run out of medication." terminal />
-              </FlowBranch>
-              <FlowBranch reply="4 — Clinic not friendly">
-                <FlowCard icon="🏥" label="System responds" message="Clinic is improving, please return." terminal />
-              </FlowBranch>
-              <FlowBranch reply="5 — Other">
-                <FlowCard icon="ℹ️" label="System responds" message="Please visit the clinic as soon as you can." terminal />
-              </FlowBranch>
+          {/* ── FLOW 2: Missed Appointment (24 hours after) ── */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 bg-amber-50">
+              <h3 className="text-sm font-bold text-amber-900">Flow 2 — Missed Appointment Follow-up</h3>
+              <p className="text-[11px] text-amber-700 mt-0.5">Sent 24 hours after a missed appointment &middot; includes reschedule option</p>
             </div>
-          </FlowBranch>
+            <div className="p-6 overflow-x-auto">
+              <div className="flex flex-col items-center min-w-[750px]">
+                <StartNode label="24 Hours After Missed Appointment" />
+                <Arrow />
+                <FNode color="amber">&ldquo;You missed your appointment yesterday, kindly let us know why:&rdquo;<br/>1: Out of town &middot; 2: Too Busy &middot; 3: Still have medication<br/>4: Clinic not friendly &middot; 5: Other</FNode>
+                <Arrow />
+                <Diamond>Response</Diamond>
+
+                <div className="flex gap-4 mt-1 flex-wrap justify-center">
+                  {/* 1 — Out of town */}
+                  <MissedReasonBranch label="1 — Out of town" response="Pick medication from any clinic near you." />
+                  {/* 2 — Too Busy */}
+                  <div className="flex flex-col items-center">
+                    <BranchLabel small>2 — Too Busy</BranchLabel>
+                    <Arrow short />
+                    <FNode color="amber" small>&ldquo;Can you send someone?  1: Yes  2: No&rdquo;</FNode>
+                    <Arrow short />
+                    <Diamond small>Reply?</Diamond>
+                    <div className="flex gap-4 mt-1">
+                      <div className="flex flex-col items-center">
+                        <BranchLabel small>Yes</BranchLabel><Arrow short />
+                        <FNode color="green" small>&ldquo;Thank you.&rdquo;</FNode><Arrow short />
+                        <RescheduleBlock />
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <BranchLabel small>No</BranchLabel><Arrow short />
+                        <FNode color="rose" small>&ldquo;Please visit clinic ASAP.&rdquo;</FNode><Arrow short />
+                        <RescheduleBlock />
+                      </div>
+                    </div>
+                  </div>
+                  {/* 3 — Still have meds */}
+                  <MissedReasonBranch label="3 — Still have meds" response="Return before meds run out." />
+                  {/* 4 — Clinic not friendly */}
+                  <MissedReasonBranch label="4 — Clinic not friendly" response="Clinic is improving, please return." />
+                  {/* 5 — Other */}
+                  <MissedReasonBranch label="5 — Other" response="Please visit clinic ASAP." />
+                </div>
+
+                {/* Reschedule sub-flow explained */}
+                <div className="mt-6 w-full max-w-lg">
+                  <div className="border-2 border-dashed border-indigo-200 rounded-xl p-4 bg-indigo-50/50">
+                    <p className="text-xs font-bold text-indigo-800 mb-2">Reschedule Sub-flow</p>
+                    <div className="flex flex-col items-center">
+                      <FNode color="blue">&ldquo;Would you like to reschedule? Reply YES or NO&rdquo;</FNode>
+                      <Arrow short />
+                      <Diamond small>Reply?</Diamond>
+                      <div className="flex gap-8 mt-1">
+                        <div className="flex flex-col items-center">
+                          <BranchLabel small>YES</BranchLabel><Arrow short />
+                          <FNode color="blue" small>&ldquo;Reply with your preferred date&rdquo;</FNode><Arrow short />
+                          <FNode color="slate" small>Client sends date<br/>(e.g. &ldquo;12 April 2026&rdquo;)</FNode><Arrow short />
+                          <FNode color="green" small>&ldquo;Request submitted for [date]. You will receive an SMS once approved.&rdquo;</FNode><Arrow short />
+                          <FNode color="slate" small>Request sent to<br/>Provider Dashboard</FNode><Arrow short />
+                          <Diamond small>Doctor?</Diamond>
+                          <div className="flex gap-6 mt-1">
+                            <div className="flex flex-col items-center">
+                              <BranchLabel small>Approved</BranchLabel><Arrow short />
+                              <FNode color="green" small>&ldquo;Your reschedule for [date] was approved. See you then!&rdquo;</FNode><Arrow short />
+                              <EndNode />
+                            </div>
+                            <div className="flex flex-col items-center">
+                              <BranchLabel small>Rejected</BranchLabel><Arrow short />
+                              <FNode color="rose" small>&ldquo;Reschedule not approved. Contact clinic for help.&rdquo;</FNode><Arrow short />
+                              <EndNode />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <BranchLabel small>NO</BranchLabel><Arrow short />
+                          <FNode color="slate" small>&ldquo;Please visit clinic ASAP.&rdquo;</FNode><Arrow short />
+                          <EndNode />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-// ── Supporting components for the read-only flow diagram ────────────────────
-function FlowCard({ icon, label, message, terminal }: { icon: string; label: string; message: string; terminal?: boolean }) {
+/* ── Flowchart building-block components ─────────────────────────────── */
+
+const nodeColors: Record<string, string> = {
+  blue:  'bg-blue-50 border-blue-300 text-blue-900',
+  green: 'bg-emerald-50 border-emerald-300 text-emerald-900',
+  amber: 'bg-amber-50 border-amber-300 text-amber-900',
+  rose:  'bg-rose-50 border-rose-300 text-rose-900',
+  slate: 'bg-gray-50 border-gray-300 text-gray-800',
+};
+
+function FNode({ color, small, children }: { color: string; small?: boolean; children: React.ReactNode }) {
   return (
-    <div className={`rounded-xl border p-4 bg-white shadow-sm ${terminal ? 'border-gray-200' : 'border-blue-200'}`}>
-      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">{icon} {label}</p>
-      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-        {message}
-      </pre>
-      {terminal && <p className="text-[11px] text-gray-400 mt-1.5 italic">↳ End of conversation</p>}
+    <div className={`border rounded-lg px-4 py-2 text-center shadow-sm max-w-xs ${small ? 'text-[11px] px-3 py-1.5 max-w-[180px]' : 'text-xs'} ${nodeColors[color] || nodeColors.slate}`}>
+      {children}
     </div>
   );
 }
 
-function FlowBranch({ reply, children }: { reply: string; children: React.ReactNode }) {
+function Diamond({ small, children }: { small?: boolean; children: React.ReactNode }) {
   return (
-    <div className="border-l-2 border-dashed border-gray-300 pl-4 space-y-2">
-      <span className="inline-block bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">
-        {reply}
-      </span>
+    <div className={`relative flex items-center justify-center ${small ? 'w-20 h-20 my-1' : 'w-28 h-28 my-2'}`}>
+      <div className="absolute inset-0 bg-indigo-50 border-2 border-indigo-300 rotate-45 rounded-md shadow-sm" />
+      <span className={`relative z-10 font-semibold text-indigo-800 ${small ? 'text-[10px]' : 'text-xs'}`}>{children}</span>
+    </div>
+  );
+}
+
+function Arrow({ short }: { short?: boolean }) {
+  return (
+    <div className={`flex flex-col items-center ${short ? 'my-1' : 'my-2'}`}>
+      <div className={`w-px bg-gray-400 ${short ? 'h-4' : 'h-6'}`} />
+      <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-gray-400" />
+    </div>
+  );
+}
+
+function BranchLabel({ small, children }: { small?: boolean; children: React.ReactNode }) {
+  return (
+    <span className={`inline-block bg-gray-100 text-gray-600 font-medium rounded-full mt-2 ${small ? 'text-[10px] px-2 py-0.5' : 'text-[11px] px-2.5 py-1'}`}>
       {children}
+    </span>
+  );
+}
+
+function StartNode({ label }: { label: string }) {
+  return (
+    <div className="px-6 py-2 rounded-full border-2 border-teal-400 bg-teal-50 text-teal-800 text-xs font-semibold shadow-sm">
+      Start &middot; {label}
+    </div>
+  );
+}
+
+function EndNode() {
+  return (
+    <div className="w-8 h-8 rounded-full bg-gray-200 border-2 border-gray-400 flex items-center justify-center">
+      <div className="w-3 h-3 rounded-full bg-gray-500" />
+    </div>
+  );
+}
+
+function ReasonBranch({ label, response }: { label: string; response: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <BranchLabel small>{label}</BranchLabel>
+      <Arrow short />
+      <FNode color="green" small>&ldquo;{response}&rdquo;</FNode>
+      <Arrow short />
+      <EndNode />
+    </div>
+  );
+}
+
+function MissedReasonBranch({ label, response }: { label: string; response: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <BranchLabel small>{label}</BranchLabel>
+      <Arrow short />
+      <FNode color="green" small>&ldquo;{response}&rdquo;</FNode>
+      <Arrow short />
+      <RescheduleBlock />
+    </div>
+  );
+}
+
+function RescheduleBlock() {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="px-3 py-1 rounded border border-dashed border-indigo-300 bg-indigo-50 text-[10px] text-indigo-700 font-medium">
+        &darr; Reschedule sub-flow
+      </div>
     </div>
   );
 }

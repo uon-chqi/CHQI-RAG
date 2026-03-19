@@ -60,25 +60,25 @@ export default function Dashboard() {
   };
 
   const adminCards = [
-    { label: 'Facilities', value: stats.totalFacilities ?? 0, accent: 'border-blue-500' },
-    { label: 'Clients', value: stats.totalPatients, accent: 'border-emerald-500' },
-    { label: 'Counties', value: stats.totalCounties ?? 0, accent: 'border-violet-500' },
-    { label: 'Conversations', value: stats.totalConversations, accent: 'border-amber-500' },
-    { label: 'Documents', value: stats.totalDocuments ?? 0, accent: 'border-cyan-500' },
-    { label: 'Active Users', value: stats.totalUsers ?? 0, accent: 'border-indigo-500' },
-    { label: 'High Risk', value: stats.highRiskPatients, accent: 'border-red-500' },
-    { label: 'Upcoming Appts', value: stats.upcomingAppointments, accent: 'border-teal-500' },
-    { label: 'Messages Today', value: stats.messagesToday, accent: 'border-orange-500' },
-    { label: 'New Clients', value: stats.newPatients30d, accent: 'border-pink-500' },
+    { label: 'Facilities', value: stats.totalFacilities ?? 0 },
+    { label: 'Clients', value: stats.totalPatients },
+    { label: 'Counties', value: stats.totalCounties ?? 0 },
+    { label: 'Conversations', value: stats.totalConversations },
+    { label: 'Documents', value: stats.totalDocuments ?? 0 },
+    { label: 'Active Users', value: stats.totalUsers ?? 0 },
+    { label: 'High Risk', value: stats.highRiskPatients },
+    { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
+    { label: 'Messages Today', value: stats.messagesToday },
+    { label: 'New Clients', value: stats.newPatients30d },
   ];
   const countyCards = [
-    { label: 'Facilities', value: stats.totalFacilities ?? 0, accent: 'border-blue-500' },
-    { label: 'Clients', value: stats.totalPatients, accent: 'border-emerald-500' },
-    { label: 'Conversations', value: stats.totalConversations, accent: 'border-amber-500' },
-    { label: 'High Risk', value: stats.highRiskPatients, accent: 'border-red-500' },
-    { label: 'Upcoming Appts', value: stats.upcomingAppointments, accent: 'border-teal-500' },
-    { label: 'Messages Today', value: stats.messagesToday, accent: 'border-orange-500' },
-    { label: 'New (30d)', value: stats.newPatients30d, accent: 'border-pink-500' },
+    { label: 'Facilities', value: stats.totalFacilities ?? 0 },
+    { label: 'Clients', value: stats.totalPatients },
+    { label: 'Conversations', value: stats.totalConversations },
+    { label: 'High Risk', value: stats.highRiskPatients },
+    { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
+    { label: 'Messages Today', value: stats.messagesToday },
+    { label: 'New (30d)', value: stats.newPatients30d },
   ];
   const cards = isAdmin ? adminCards : countyCards;
 
@@ -123,7 +123,7 @@ export default function Dashboard() {
       <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mt-6">
         <div className={'grid gap-3 ' + (isAdmin ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4')}>
           {cards.map(card => (
-            <div key={card.label} className={'bg-white rounded-xl shadow-sm border border-gray-200 border-t-4 ' + card.accent + ' p-4 sm:p-5 flex flex-col items-center text-center transition-transform hover:scale-[1.02] hover:shadow-md'}>
+            <div key={card.label} className={'bg-white rounded-xl shadow-sm border border-gray-200 ' + card.accent + ' p-4 sm:p-5 flex flex-col items-center text-center transition-transform hover:scale-[1.02] hover:shadow-md'}>
               {loading ? <div className="h-8 w-16 bg-gray-100 rounded animate-pulse mb-1" /> : <span className="text-2xl sm:text-3xl font-extrabold text-gray-900">{(card.value ?? 0).toLocaleString()}</span>}
               <span className="text-[11px] sm:text-xs text-gray-500 font-medium mt-1 leading-tight">{card.label}</span>
             </div>

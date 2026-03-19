@@ -115,15 +115,15 @@ export default function FacilityDetail() {
             <span className="text-3xl font-extrabold text-gray-900">{clients.length}</span>
             <p className="text-xs text-gray-500 mt-1">Total Clients</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-red-500 p-5 text-center">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
             <span className="text-3xl font-extrabold text-red-600">{highRisk}</span>
             <p className="text-xs text-gray-500 mt-1">High Risk</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-amber-500 p-5 text-center">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
             <span className="text-3xl font-extrabold text-amber-600">{mediumRisk}</span>
             <p className="text-xs text-gray-500 mt-1">Medium Risk</p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-emerald-500 p-5 text-center">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
             <span className="text-3xl font-extrabold text-emerald-600">{lowRisk}</span>
             <p className="text-xs text-gray-500 mt-1">Low Risk</p>
           </div>

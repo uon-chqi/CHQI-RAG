@@ -9,6 +9,7 @@ const router = express.Router();
 
 // ─── Hardcoded Two-Way SMS Flow Messages (from appointment flowchart) ───────
 const FLOW = {
+  // Pre-appointment (1 day before)
   confirm_yes:       'Great! See you then.',
   ask_reason:        'Kindly let us know why:\n1: Out of town\n2: Too Busy\n3: Still have medication\n4: Clinic not friendly\n5: Other',
   out_of_town:       'Pick medication from any clinic near you.',
@@ -18,7 +19,61 @@ const FLOW = {
   other:             'Please visit the clinic as soon as you can.',
   delegate_yes:      'Thank you.',
   delegate_no:       'Please visit the clinic as soon as you can.',
+
+  // Missed appointment (24 hours after)
+  missed_initial:    'You missed your appointment yesterday, kindly let us know why:\n1: Out of town\n2: Too Busy\n3: Still have medication\n4: Clinic not friendly\n5: Other',
+  missed_out_of_town:    'Pick medication from any clinic near you.\nWould you like to reschedule? Reply YES or NO.',
+  missed_too_busy:       'Can you send someone to pick the medication?\n1: Yes\n2: No',
+  missed_still_have_meds:'Ensure you return to clinic before you run out of medication.\nWould you like to reschedule? Reply YES or NO.',
+  missed_clinic_unfriendly:'Clinic is improving, please return.\nWould you like to reschedule? Reply YES or NO.',
+  missed_other:          'Please visit the clinic as soon as you can.\nWould you like to reschedule? Reply YES or NO.',
+  missed_delegate_yes:   'Thank you.\nWould you like to reschedule? Reply YES or NO.',
+  missed_delegate_no:    'Please visit the clinic as soon as you can.\nWould you like to reschedule? Reply YES or NO.',
+  ask_reschedule_date:   'Please reply with your preferred date (e.g. 12 April 2026 or 12/04/2026).',
+  reschedule_saved:      'Thank you! Your reschedule request for {date} has been submitted. You will receive an SMS once it is approved or rejected.',
+  reschedule_declined:   'No problem. Please visit the clinic as soon as you can.',
 };
+
+/**
+ * Parse a date from freeform text like "12 april 2026", "12/04/2026", "april 12", "12-04-2026" etc.
+ * Returns a Date object or null if unparseable.
+ */
+function parseDateFromText(text) {
+  const s = text.trim().toLowerCase().replace(/[,]/g, '');
+
+  // Month name map
+  const months = { jan:0,january:0,feb:1,february:1,mar:2,march:2,apr:3,april:3,may:4,jun:5,june:5,jul:6,july:6,aug:7,august:7,sep:8,september:8,oct:9,october:9,nov:10,november:10,dec:11,december:11 };
+
+  // "12 april 2026" or "12th april 2026"
+  let m = s.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{4})$/);
+  if (m && months[m[2]] !== undefined) return new Date(parseInt(m[3]), months[m[2]], parseInt(m[1]));
+
+  // "april 12 2026" or "april 12th 2026"
+  m = s.match(/^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\s+(\d{4})$/);
+  if (m && months[m[1]] !== undefined) return new Date(parseInt(m[3]), months[m[1]], parseInt(m[2]));
+
+  // "12 april" or "april 12" (assume current year)
+  m = s.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)$/);
+  if (m && months[m[2]] !== undefined) return new Date(new Date().getFullYear(), months[m[2]], parseInt(m[1]));
+  m = s.match(/^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?$/);
+  if (m && months[m[1]] !== undefined) return new Date(new Date().getFullYear(), months[m[1]], parseInt(m[2]));
+
+  // "12/04/2026" or "12-04-2026" (DD/MM/YYYY)
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+
+  // "2026-04-12" (ISO)
+  m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+
+  return null;
+}
+
+/** Format a date as "12 April 2026" */
+function formatDate(d) {
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+}
 
 /**
  * Check if this phone number is in an active two-way appointment conversation.
@@ -136,6 +191,113 @@ async function handleTwoWayFlow(phone, text) {
     } else {
       await sendSMS(phone, FLOW.delegate_no);
       await recordTerminal(phone, patientId, reply, 'delegate_no');
+    }
+    return true;
+  }
+
+  // ── MISSED APPOINTMENT FLOW STATES ──
+
+  // State: client received "You missed your appointment" — waiting for reason 1-5
+  if (stateCode === 'missed_waiting_reason') {
+    await markStateDone(phone, 'missed_waiting_reason');
+    if (reply === '1') {
+      await sendSMS(phone, FLOW.missed_out_of_town);
+      await recordState(phone, patientId, null, 'missed_ask_reschedule');
+    } else if (reply === '2') {
+      await sendSMS(phone, FLOW.missed_too_busy);
+      await recordState(phone, patientId, null, 'missed_waiting_delegate');
+    } else if (reply === '3') {
+      await sendSMS(phone, FLOW.missed_still_have_meds);
+      await recordState(phone, patientId, null, 'missed_ask_reschedule');
+    } else if (reply === '4') {
+      await sendSMS(phone, FLOW.missed_clinic_unfriendly);
+      await recordState(phone, patientId, null, 'missed_ask_reschedule');
+    } else if (reply === '5') {
+      await sendSMS(phone, FLOW.missed_other);
+      await recordState(phone, patientId, null, 'missed_ask_reschedule');
+    } else {
+      await sendSMS(phone, 'Please reply with a number 1–5.');
+    }
+    return true;
+  }
+
+  // State: missed → too busy → can you send someone? 1 Yes / 2 No
+  if (stateCode === 'missed_waiting_delegate') {
+    await markStateDone(phone, 'missed_waiting_delegate');
+    if (reply === '1') {
+      await sendSMS(phone, FLOW.missed_delegate_yes);
+      await recordState(phone, patientId, null, 'missed_ask_reschedule');
+    } else {
+      await sendSMS(phone, FLOW.missed_delegate_no);
+      await recordState(phone, patientId, null, 'missed_ask_reschedule');
+    }
+    return true;
+  }
+
+  // State: ask if they want to reschedule (YES / NO)
+  if (stateCode === 'missed_ask_reschedule') {
+    await markStateDone(phone, 'missed_ask_reschedule');
+    const lc = reply.toLowerCase();
+    if (lc === 'yes' || lc === '1' || lc === 'y') {
+      await sendSMS(phone, FLOW.ask_reschedule_date);
+      await recordState(phone, patientId, null, 'waiting_reschedule_date');
+    } else {
+      await sendSMS(phone, FLOW.reschedule_declined);
+      await recordTerminal(phone, patientId, reply, 'reschedule_declined');
+    }
+    return true;
+  }
+
+  // State: waiting for the reschedule date text
+  if (stateCode === 'waiting_reschedule_date') {
+    await markStateDone(phone, 'waiting_reschedule_date');
+    const parsed = parseDateFromText(reply);
+    if (!parsed || isNaN(parsed.getTime()) || parsed < new Date()) {
+      await sendSMS(phone, 'Sorry, we could not understand that date or it is in the past. Please reply with a future date (e.g. 12 April 2026 or 12/04/2026).');
+      await recordState(phone, patientId, null, 'waiting_reschedule_date');
+      return true;
+    }
+
+    // Save reschedule request
+    try {
+      // Get patient details
+      const patientResult = patientId
+        ? await pool.query('SELECT first_name, last_name, facility_id FROM patients WHERE id = $1', [patientId])
+        : await pool.query('SELECT id, first_name, last_name, facility_id FROM patients WHERE phone = $1 LIMIT 1', [phone]);
+      const patient = patientResult.rows[0];
+      const pId = patientId || patient?.id;
+      const pName = patient ? `${patient.first_name || ''} ${patient.last_name || ''}`.trim() : '';
+      const facilityId = patient?.facility_id;
+
+      // Find the most recent missed appointment
+      const apptResult = await pool.query(
+        `SELECT id, appointment_date FROM appointments
+         WHERE patient_id = $1 AND status IN ('missed','no_show','scheduled')
+         ORDER BY appointment_date DESC LIMIT 1`,
+        [pId]
+      );
+
+      await pool.query(
+        `INSERT INTO reschedule_requests
+         (patient_id, facility_id, appointment_id, phone_number, patient_name, original_appointment_date, requested_date, requested_date_raw, reason, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')`,
+        [
+          pId, facilityId,
+          apptResult.rows[0]?.id || null,
+          phone, pName,
+          apptResult.rows[0]?.appointment_date || null,
+          parsed.toISOString(),
+          reply,
+          state.response_text || 'missed appointment',
+        ]
+      );
+
+      const fmtDate = formatDate(parsed);
+      await sendSMS(phone, FLOW.reschedule_saved.replace('{date}', fmtDate));
+      await recordTerminal(phone, patientId, reply, 'reschedule_requested');
+    } catch (err) {
+      console.error('Error saving reschedule request:', err);
+      await sendSMS(phone, 'Sorry, something went wrong saving your request. Please try again later.');
     }
     return true;
   }

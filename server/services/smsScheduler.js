@@ -32,12 +32,35 @@ const shouldSendMessage = (appointmentDate, messageDaysBefore) => {
 };
 
 // Helper to format template with variables
+// If the message contains {{placeholders}}, replace them.
+// If it's plain text (no {{}}), auto-personalise by prepending patient name
+// and replacing any literal dates/facility names with the real values.
 const formatTemplate = (template, variables) => {
   let message = template;
-  Object.entries(variables).forEach(([key, value]) => {
-    const placeholder = `{{${key}}}`;
-    message = message.replace(new RegExp(placeholder, 'g'), value);
-  });
+  if (message.includes('{{')) {
+    // Template mode: replace all {{key}} placeholders
+    Object.entries(variables).forEach(([key, value]) => {
+      const placeholder = `{{${key}}}`;
+      message = message.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), String(value));
+    });
+  } else {
+    // Plain text mode: auto-personalise
+    const name = variables.patient_name || 'there';
+    const date = variables.appointment_date || '';
+    const facility = variables.clinic_name || variables.facility_name || '';
+    const days = variables.days_until != null ? variables.days_until : '';
+
+    // If the message doesn't start with a greeting that includes the name, prepend it
+    const lc = message.toLowerCase();
+    if (!lc.startsWith('hi ') && !lc.startsWith('hello ') && !lc.startsWith('dear ')) {
+      message = `Hi ${name}, ${message.charAt(0).toLowerCase()}${message.slice(1)}`;
+    }
+
+    // Append appointment details if not already mentioned
+    if (date && !message.includes(String(date))) {
+      message = message.replace(/\.?\s*$/, '') + ` on ${date}.`;
+    }
+  }
   return message;
 };
 
@@ -155,27 +178,30 @@ export const smsScheduler = {
           continue;
         }
 
-        // Get message template
-        const templateResult = await query(
-          `SELECT * FROM message_templates 
-           WHERE facility_id = $1 
-           AND template_type = 'appointment_reminder'
-           AND (risk_level = $2 OR risk_level IS NULL)
-           AND enabled = true
-           ORDER BY risk_level DESC
-           LIMIT 1`,
-          [facility_id, risk_level]
-        );
+        // Use message_text from the timing config if provided, otherwise fall back to message_templates table
+        let messageBody = timing.message_text;
 
-        if (templateResult.rows.length === 0) {
-          console.warn(`No message template for appointment reminder at facility ${facility_id}`);
-          continue;
+        if (!messageBody) {
+          const templateResult = await query(
+            `SELECT * FROM message_templates 
+             WHERE facility_id = $1 
+             AND template_type = 'appointment_reminder'
+             AND (risk_level = $2 OR risk_level IS NULL)
+             AND enabled = true
+             ORDER BY risk_level DESC
+             LIMIT 1`,
+            [facility_id, risk_level]
+          );
+
+          if (templateResult.rows.length === 0) {
+            console.warn(`No message template for appointment reminder at facility ${facility_id}`);
+            continue;
+          }
+          messageBody = templateResult.rows[0].body;
         }
 
-        const template = templateResult.rows[0];
-
         // Format message with appointment details
-        const formattedMessage = formatTemplate(template.body, {
+        const formattedMessage = formatTemplate(messageBody, {
           patient_name: patient_name || 'Patient',
           appointment_date: new Date(appointmentDate).toLocaleDateString(),
           appointment_time: new Date(appointmentDate).toLocaleTimeString(),
@@ -285,66 +311,73 @@ export const smsScheduler = {
   },
 
   /**
-   * Process missed appointment callback messages
-   * This would be integrated with the flowchart responses
+   * Process missed appointments — 24 hours after the appointment date,
+   * send the "You missed your appointment" two-way SMS.
+   * Call this function periodically (e.g. daily).
    */
-  async processMissedAppointmentCallback(patientId, appointmentId, response) {
+  async processMissedAppointments() {
     try {
-      // Get appointment and patient details
-      const result = await query(
-        `SELECT a.*, p.phone_number, p.facility_id, p.patient_name
+      console.log('[SMS Scheduler] Checking for missed appointments...');
+
+      // Find appointments that were yesterday and still marked as scheduled (not attended)
+      const missedResult = await query(
+        `SELECT a.id AS appointment_id, a.appointment_date, a.patient_id, a.facility_id,
+                p.phone, p.first_name, p.last_name, p.risk_level
          FROM appointments a
          JOIN patients p ON a.patient_id = p.id
-         WHERE a.id = $1 AND p.id = $2`,
-        [appointmentId, patientId]
+         WHERE a.status IN ('scheduled', 'no_show', 'missed')
+         AND a.appointment_date::date = (CURRENT_DATE - INTERVAL '1 day')::date
+         AND p.phone IS NOT NULL
+         AND p.is_active = true
+         AND a.id NOT IN (
+           SELECT COALESCE(appointment_id, '00000000-0000-0000-0000-000000000000')
+           FROM sms_sent_messages
+           WHERE message_type = 'missed_appointment'
+         )`
       );
 
-      if (result.rows.length === 0) {
-        throw new Error('Appointment or patient not found');
+      console.log(`Found ${missedResult.rows.length} missed appointments to follow up`);
+
+      let sent = 0;
+      for (const row of missedResult.rows) {
+        try {
+          const name = `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'there';
+          const msg = `Hi ${name}, you missed your appointment yesterday, kindly let us know why:\n1: Out of town\n2: Too Busy\n3: Still have medication\n4: Clinic not friendly\n5: Other`;
+
+          await sendSMS(row.phone, msg);
+
+          // Log the sent message
+          await query(
+            `INSERT INTO sms_sent_messages
+             (patient_id, facility_id, appointment_id, message_type, phone_number, message_body, channel, status)
+             VALUES ($1, $2, $3, 'missed_appointment', $4, $5, 'sms', 'sent')`,
+            [row.patient_id, row.facility_id, row.appointment_id, row.phone, msg]
+          );
+
+          // Create a pending state so the webhook can handle their reply
+          await query(
+            `INSERT INTO sms_responses (phone_number, patient_id, response_text, reason_code, followup_needed, followup_sent)
+             VALUES ($1, $2, 'missed_appointment_sent', 'missed_waiting_reason', true, false)`,
+            [row.phone, row.patient_id]
+          );
+
+          // Mark appointment as missed
+          await query(
+            `UPDATE appointments SET status = 'missed' WHERE id = $1 AND status = 'scheduled'`,
+            [row.appointment_id]
+          );
+
+          sent++;
+        } catch (err) {
+          console.error(`Error sending missed appointment SMS to ${row.phone}:`, err);
+        }
       }
 
-      const { phone_number, facility_id, patient_name } = result.rows[0];
-
-      // Get appropriate response message template
-      const templateResult = await query(
-        `SELECT * FROM message_templates 
-         WHERE facility_id = $1 
-         AND template_type = 'missed_appointment_response'
-         AND enabled = true
-         LIMIT 1`,
-        [facility_id]
-      );
-
-      if (templateResult.rows.length === 0) {
-        console.warn(`No response template for missed appointment at facility ${facility_id}`);
-        return;
-      }
-
-      const template = templateResult.rows[0];
-      const formattedMessage = formatTemplate(template.body, {
-        patient_name: patient_name || 'Patient',
-        response_reason: response
-      });
-
-      // Send response message
-      try {
-        const sendResult = await sendSMS(phone_number, formattedMessage);
-
-        await query(
-          `INSERT INTO sms_sent_messages 
-           (patient_id, facility_id, appointment_id, message_type, phone_number, message_body, 
-            channel, status, external_message_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [patientId, facility_id, appointmentId, 'missed_appointment_response', phone_number, 
-           formattedMessage, 'sms', 'sent', sendResult.messageId || null]
-        );
-
-        console.log(`✅ Sent missed appointment response for patient ${patientId}`);
-      } catch (sendError) {
-        console.error('Failed to send response:', sendError);
-      }
+      console.log(`[SMS Scheduler] Sent ${sent} missed appointment messages`);
+      return sent;
     } catch (error) {
-      console.error('Error processing missed appointment callback:', error);
+      console.error('[SMS Scheduler] Error processing missed appointments:', error);
+      return 0;
     }
   }
 };
