@@ -19,6 +19,8 @@ import authRoutes from './routes/auth.js';
 import facilityRoutes from './routes/facility.js';
 import countyRoutes from './routes/county.js';
 import rescheduleRoutes from './routes/reschedule.js';
+import chatbotRoutes from './routes/chatbot.js';
+import flaggedRoutes from './routes/flagged.js';
 import { initDailySync } from './services/dailySync.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -51,6 +53,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/facility', facilityRoutes);
 app.use('/api/county', countyRoutes);
 app.use('/api/reschedule-requests', rescheduleRoutes);
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/flagged', flaggedRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

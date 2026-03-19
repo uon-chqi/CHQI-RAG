@@ -15,6 +15,8 @@ import PatientManagement from './pages/PatientManagement';
 import AdminDashboard from './pages/AdminDashboard';
 import UserManagement from './pages/UserManagement';
 import FacilityDetail from './pages/FacilityDetail';
+import Chatbot from './pages/Chatbot';
+import FlaggedPatients from './pages/FlaggedPatients';
 
 export default function App() {
   return (
@@ -22,6 +24,7 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/chatbot" element={<Chatbot />} />
           <Route
             path="/"
             element={
@@ -41,6 +44,8 @@ export default function App() {
             <Route path="patient-management" element={<PatientManagement />} />
             <Route path="organisations" element={<AdminDashboard />} />
             <Route path="organisations/:id" element={<FacilityDetail />} />
+            <Route path="flagged-patients" element={<FlaggedPatients />} />
+            <Route path="flagged-patients/:facilityId" element={<FlaggedPatients />} />
             <Route path="admin/hierarchy" element={<AdminDashboard />} />
             <Route path="admin/users" element={<UserManagement />} />
           </Route>

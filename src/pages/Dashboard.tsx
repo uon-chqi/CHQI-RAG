@@ -15,6 +15,7 @@ interface Stats {
   totalCounties?: number;
   totalDocuments?: number;
   totalUsers?: number;
+  flaggedPatients?: number;
 }
 
 interface County { id: string; name: string; code: string; }
@@ -22,7 +23,7 @@ interface Facility { id: string; name: string; code: string; county_name: string
 
 export default function Dashboard() {
   const { user, token, isSuperAdmin, isNational, isCounty } = useAuth();
-  const [stats, setStats] = useState<Stats>({ totalPatients: 0, totalConversations: 0, highRiskPatients: 0, upcomingAppointments: 0, messagesToday: 0, newPatients30d: 0, totalFacilities: 0, totalCounties: 0, totalDocuments: 0, totalUsers: 0 });
+  const [stats, setStats] = useState<Stats>({ totalPatients: 0, totalConversations: 0, highRiskPatients: 0, upcomingAppointments: 0, messagesToday: 0, newPatients30d: 0, totalFacilities: 0, totalCounties: 0, totalDocuments: 0, totalUsers: 0, flaggedPatients: 0 });
   const [counties, setCounties] = useState<County[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,19 +38,27 @@ export default function Dashboard() {
     try {
       if (isSuperAdmin || isNational) {
         // Both super admin and national users see all data
-        const d = await fetch(API_BASE + '/api/admin/overview', { headers: authHeaders() }).then(r => r.json()).catch(() => null);
+        const [d, flaggedRes] = await Promise.all([
+          fetch(API_BASE + '/api/admin/overview', { headers: authHeaders() }).then(r => r.json()).catch(() => null),
+          fetch(API_BASE + '/api/flagged/stats', { headers: authHeaders() }).then(r => r.json()).catch(() => null),
+        ]);
+        const flaggedCount = flaggedRes?.success ? (flaggedRes.data?.total ?? 0) : 0;
         if (d?.success) {
           const s = d.data.summary;
           setCounties(d.data.counties || []);
           setFacilities(d.data.facilities || []);
-          setStats({ totalFacilities: parseInt(s?.total_facilities ?? 0), totalPatients: parseInt(s?.total_patients ?? 0), totalCounties: parseInt(s?.total_counties ?? 0), totalUsers: parseInt(s?.total_users ?? 0), totalConversations: parseInt(s?.total_conversations ?? 0), totalDocuments: parseInt(s?.total_documents ?? 0), highRiskPatients: parseInt(s?.high_risk_patients ?? 0), upcomingAppointments: parseInt(s?.upcoming_appointments ?? 0), messagesToday: parseInt(s?.messages_today ?? 0), newPatients30d: parseInt(s?.new_patients_30d ?? 0) });
+          setStats({ totalFacilities: parseInt(s?.total_facilities ?? 0), totalPatients: parseInt(s?.total_patients ?? 0), totalCounties: parseInt(s?.total_counties ?? 0), totalUsers: parseInt(s?.total_users ?? 0), totalConversations: parseInt(s?.total_conversations ?? 0), totalDocuments: parseInt(s?.total_documents ?? 0), highRiskPatients: parseInt(s?.high_risk_patients ?? 0), upcomingAppointments: parseInt(s?.upcoming_appointments ?? 0), messagesToday: parseInt(s?.messages_today ?? 0), newPatients30d: parseInt(s?.new_patients_30d ?? 0), flaggedPatients: flaggedCount });
         }
       } else if (isCounty) {
         // County manager sees county-scoped data
-        const d = await fetch(API_BASE + '/api/county/dashboard', { headers: authHeaders() }).then(r => r.json()).catch(() => null);
+        const [d, flaggedRes2] = await Promise.all([
+          fetch(API_BASE + '/api/county/dashboard', { headers: authHeaders() }).then(r => r.json()).catch(() => null),
+          fetch(API_BASE + '/api/flagged/stats', { headers: authHeaders() }).then(r => r.json()).catch(() => null),
+        ]);
+        const countyFlaggedCount = flaggedRes2?.success ? (flaggedRes2.data?.total ?? 0) : 0;
         if (d?.success) {
           const v = d.data;
-          setStats({ totalFacilities: parseInt(v.total_facilities ?? 0), totalPatients: parseInt(v.total_patients ?? 0), totalConversations: parseInt(v.total_conversations ?? 0), highRiskPatients: parseInt(v.high_risk_patients ?? 0), upcomingAppointments: parseInt(v.upcoming_appointments ?? 0), messagesToday: parseInt(v.messages_today ?? 0), newPatients30d: parseInt(v.new_patients_30d ?? 0) });
+          setStats({ totalFacilities: parseInt(v.total_facilities ?? 0), totalPatients: parseInt(v.total_patients ?? 0), totalConversations: parseInt(v.total_conversations ?? 0), highRiskPatients: parseInt(v.high_risk_patients ?? 0), upcomingAppointments: parseInt(v.upcoming_appointments ?? 0), messagesToday: parseInt(v.messages_today ?? 0), newPatients30d: parseInt(v.new_patients_30d ?? 0), flaggedPatients: countyFlaggedCount });
         }
         // Also fetch county's facilities
         const fac = await fetch(API_BASE + '/api/county/facilities', { headers: authHeaders() }).then(r => r.json()).catch(() => null);
@@ -70,6 +79,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New Clients', value: stats.newPatients30d },
+    { label: 'Flagged Patients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500', link: '/flagged-patients' },
   ];
   const countyCards = [
     { label: 'Facilities', value: stats.totalFacilities ?? 0 },
@@ -79,6 +89,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New (30d)', value: stats.newPatients30d },
+    { label: 'Flagged Patients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500', link: '/flagged-patients' },
   ];
   const cards = isAdmin ? adminCards : countyCards;
 
@@ -122,12 +133,15 @@ export default function Dashboard() {
       {/* Stat Cards */}
       <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mt-6">
         <div className={'grid gap-3 ' + (isAdmin ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4')}>
-          {cards.map(card => (
-            <div key={card.label} className={'bg-white rounded-xl shadow-sm border border-gray-200 ' + card.accent + ' p-4 sm:p-5 flex flex-col items-center text-center transition-transform hover:scale-[1.02] hover:shadow-md'}>
-              {loading ? <div className="h-8 w-16 bg-gray-100 rounded animate-pulse mb-1" /> : <span className="text-2xl sm:text-3xl font-extrabold text-gray-900">{(card.value ?? 0).toLocaleString()}</span>}
-              <span className="text-[11px] sm:text-xs text-gray-500 font-medium mt-1 leading-tight">{card.label}</span>
-            </div>
-          ))}
+          {cards.map(card => {
+            const inner = (
+              <div key={card.label} className={'bg-white rounded-xl shadow-sm border border-gray-200 ' + (card.accent || '') + ' p-4 sm:p-5 flex flex-col items-center text-center transition-transform hover:scale-[1.02] hover:shadow-md'}>
+                {loading ? <div className="h-8 w-16 bg-gray-100 rounded animate-pulse mb-1" /> : <span className="text-2xl sm:text-3xl font-extrabold text-gray-900">{(card.value ?? 0).toLocaleString()}</span>}
+                <span className="text-[11px] sm:text-xs text-gray-500 font-medium mt-1 leading-tight">{card.label}</span>
+              </div>
+            );
+            return card.link ? <Link key={card.label} to={card.link}>{inner}</Link> : <div key={card.label}>{inner}</div>;
+          })}
         </div>
       </section>
 

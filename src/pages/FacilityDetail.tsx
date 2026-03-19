@@ -33,6 +33,7 @@ export default function FacilityDetail() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('');
+  const [flaggedCount, setFlaggedCount] = useState(0);
 
   const authHeaders = () => ({
     'Content-Type': 'application/json',
@@ -59,6 +60,12 @@ export default function FacilityDetail() {
       const clientsData = await clientsRes.json();
       if (clientsData.success) {
         setClients(clientsData.data || []);
+      }
+
+      // Fetch flagged patients count
+      const flaggedRes = await fetch(`${API_BASE}/api/flagged/stats?facility_id=${id}`, { headers: authHeaders() }).then(r => r.json()).catch(() => null);
+      if (flaggedRes?.success) {
+        setFlaggedCount(flaggedRes.data?.total ?? 0);
       }
     } catch (err) {
       console.error('Error loading facility data:', err);
@@ -110,7 +117,7 @@ export default function FacilityDetail() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
             <span className="text-3xl font-extrabold text-gray-900">{clients.length}</span>
             <p className="text-xs text-gray-500 mt-1">Total Clients</p>
@@ -127,6 +134,10 @@ export default function FacilityDetail() {
             <span className="text-3xl font-extrabold text-emerald-600">{lowRisk}</span>
             <p className="text-xs text-gray-500 mt-1">Low Risk</p>
           </div>
+          <Link to={`/flagged-patients/${id}`} className="bg-white rounded-xl border border-gray-200 border-l-4 border-l-red-500 p-5 text-center hover:shadow-md transition-all">
+            <span className="text-3xl font-extrabold text-red-600">{flaggedCount}</span>
+            <p className="text-xs text-gray-500 mt-1">Flagged Patients</p>
+          </Link>
         </div>
 
         {/* Filters */}
