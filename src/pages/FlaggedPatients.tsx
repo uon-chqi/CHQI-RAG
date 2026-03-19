@@ -15,6 +15,7 @@ interface FlaggedRecord {
   next_appointment_date: string | null;
   patient_created_at: string;
   facility_name: string;
+  flagged_words: string[];
 }
 
 export default function FlaggedPatients() {
@@ -82,7 +83,7 @@ export default function FlaggedPatients() {
         <div className="flex gap-3 bg-white rounded-xl border border-gray-200 px-4 py-3">
           <input
             type="text"
-            placeholder="Search by name, phone, or CCC number\u2026"
+            placeholder="Search by name, phone, or CCC number…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-900/20"
@@ -110,15 +111,16 @@ export default function FlaggedPatients() {
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Phone</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">CCC Number</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Risk Level</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Flagged Words</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Next Appt</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-600 uppercase">Joined</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400">Loading clients\u2026</td></tr>
+                  <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400">Loading clients…</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400">No flagged clients found</td></tr>
+                  <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400">No flagged clients found</td></tr>
                 ) : (
                   filtered.map((r) => (
                     <tr key={r.id} className="hover:bg-gray-50 transition-colors">
@@ -129,6 +131,13 @@ export default function FlaggedPatients() {
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${riskColor(r.risk_level)}`}>
                           {r.risk_level}
                         </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex flex-wrap gap-1">
+                          {(r.flagged_words || []).map((w, i) => (
+                            <span key={i} className="bg-red-50 text-red-600 text-[10px] px-1.5 py-0.5 rounded font-medium">{w}</span>
+                          ))}
+                        </div>
                       </td>
                       <td className="px-5 py-3.5 text-gray-600 text-xs">
                         {r.next_appointment_date ? new Date(r.next_appointment_date).toLocaleDateString() : '\u2014'}

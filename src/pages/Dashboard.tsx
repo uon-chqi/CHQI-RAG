@@ -79,7 +79,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New Clients', value: stats.newPatients30d },
-    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500', link: '/flagged-patients' },
+    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500' },
   ];
   const countyCards = [
     { label: 'Facilities', value: stats.totalFacilities ?? 0 },
@@ -89,7 +89,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New (30d)', value: stats.newPatients30d },
-    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500', link: '/flagged-patients' },
+    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500' },
   ];
   const cards = isAdmin ? adminCards : countyCards;
 
@@ -133,15 +133,12 @@ export default function Dashboard() {
       {/* Stat Cards */}
       <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mt-6">
         <div className={'grid gap-3 ' + (isAdmin ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4')}>
-          {cards.map(card => {
-            const inner = (
-              <div key={card.label} className={'bg-white rounded-xl shadow-sm border border-gray-200 ' + (card.accent || '') + ' p-4 sm:p-5 flex flex-col items-center text-center transition-transform hover:scale-[1.02] hover:shadow-md'}>
-                {loading ? <div className="h-8 w-16 bg-gray-100 rounded animate-pulse mb-1" /> : <span className="text-2xl sm:text-3xl font-extrabold text-gray-900">{(card.value ?? 0).toLocaleString()}</span>}
-                <span className="text-[11px] sm:text-xs text-gray-500 font-medium mt-1 leading-tight">{card.label}</span>
-              </div>
-            );
-            return card.link ? <Link key={card.label} to={card.link}>{inner}</Link> : <div key={card.label}>{inner}</div>;
-          })}
+          {cards.map(card => (
+            <div key={card.label} className={'bg-white rounded-xl shadow-sm border border-gray-200 ' + (card.accent || '') + ' p-4 sm:p-5 flex flex-col items-center text-center transition-transform hover:scale-[1.02] hover:shadow-md'}>
+              {loading ? <div className="h-8 w-16 bg-gray-100 rounded animate-pulse mb-1" /> : <span className="text-2xl sm:text-3xl font-extrabold text-gray-900">{(card.value ?? 0).toLocaleString()}</span>}
+              <span className="text-[11px] sm:text-xs text-gray-500 font-medium mt-1 leading-tight">{card.label}</span>
+            </div>
+          ))}
         </div>
       </section>
 
