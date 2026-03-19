@@ -39,7 +39,7 @@ export default function AdminDashboard() {
   const summaryCards = summary ? [
     { label: 'Counties', value: summary.total_counties},
     { label: 'Facilities', value: summary.total_facilities},
-    { label: 'Patients', value: summary.total_patients},
+    { label: 'Clients', value: summary.total_patients},
     { label: 'Users', value: summary.total_users},
   ] : [];
 

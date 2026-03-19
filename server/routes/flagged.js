@@ -42,6 +42,7 @@ router.get('/', async (req, res) => {
     let sql = `
       SELECT fp.*,
         p.first_name, p.last_name, p.phone, p.ccc_number, p.risk_level,
+        p.next_appointment_date, p.created_at AS patient_created_at,
         f.name AS facility_name, f.code AS facility_code,
         c.name AS county_name
       FROM flagged_patients fp

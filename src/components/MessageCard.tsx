@@ -63,7 +63,7 @@ export function MessageCard({ message, index = 0 }: MessageCardProps) {
           </div>
 
           <div className="bg-gray-50 rounded-lg p-3 mb-2">
-            <p className="text-xs font-medium text-gray-600 mb-1">Patient Message:</p>
+            <p className="text-xs font-medium text-gray-600 mb-1">Client Message:</p>
             <p className="text-sm text-gray-900">{message.message}</p>
           </div>
 

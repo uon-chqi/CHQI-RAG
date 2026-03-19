@@ -162,7 +162,7 @@ export default function SMSConfiguration() {
                 <div className="flex items-center justify-between px-5 py-4">
                   <h3 className="text-base font-semibold text-gray-900">
                     <span className={`inline-block mr-2 px-2 py-0.5 rounded text-xs font-bold ${riskBadge}`}>{risk}</span>
-                    Risk Patients
+                    Risk Clients
                   </h3>
                   {!isEditing ? (
                     <button onClick={() => startEditing(risk)}

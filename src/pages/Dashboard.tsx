@@ -79,7 +79,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New Clients', value: stats.newPatients30d },
-    { label: 'Flagged Patients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500', link: '/flagged-patients' },
+    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500', link: '/flagged-patients' },
   ];
   const countyCards = [
     { label: 'Facilities', value: stats.totalFacilities ?? 0 },
@@ -89,7 +89,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New (30d)', value: stats.newPatients30d },
-    { label: 'Flagged Patients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500', link: '/flagged-patients' },
+    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500', link: '/flagged-patients' },
   ];
   const cards = isAdmin ? adminCards : countyCards;
 
@@ -228,8 +228,8 @@ export default function Dashboard() {
           {/* Quick actions */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Link to="/patient-management" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all group">
-              <h3 className="text-lg font-bold text-gray-900 group-hover:text-navy-900">Manage Patients</h3>
-              <p className="text-sm text-gray-500 mt-1">View patient records across facilities in your county</p>
+              <h3 className="text-lg font-bold text-gray-900 group-hover:text-navy-900">Manage Clients</h3>
+              <p className="text-sm text-gray-500 mt-1">View client records across facilities in your county</p>
             </Link>
             <Link to="/conversations" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all group">
               <h3 className="text-lg font-bold text-gray-900 group-hover:text-navy-900">Conversations</h3>

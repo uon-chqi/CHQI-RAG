@@ -111,9 +111,9 @@ export default function PatientManagement() {
     <div className="flex flex-col p-3 sm:p-4 md:p-6 gap-4 sm:gap-6 bg-gray-50 min-h-screen">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Patient Management</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Client Management</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
-            {isCounty ? 'View patient records across facilities in your county' : 'View and manage patient information and risk levels'}
+            {isCounty ? 'View client records across facilities in your county' : 'View and manage client information and risk levels'}
           </p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -136,7 +136,7 @@ export default function PatientManagement() {
             <button key={f.facility_id} onClick={() => setSelectedFacility(f.facility_id)} className="bg-white rounded-lg border border-gray-200 p-4 text-left hover:border-emerald-400 hover:shadow-sm transition-all">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-semibold text-gray-900 text-sm">{f.facility_name}</h4>
-                <span className="text-xs text-gray-400">{f.patient_count} patients</span>
+                <span className="text-xs text-gray-400">{f.patient_count} clients</span>
               </div>
               <div className="flex gap-2 text-xs">
                 <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full">H: {f.high_risk}</span>
@@ -150,7 +150,7 @@ export default function PatientManagement() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Total Patients" value={stats.total} icon={<AlertCircle className="w-5 h-5" />} color="bg-blue-50" />
+        <StatCard title="Total Clients" value={stats.total} icon={<AlertCircle className="w-5 h-5" />} color="bg-blue-50" />
         <StatCard title="High Risk" value={stats.byRiskLevel.HIGH} icon={<AlertCircle className="w-5 h-5 text-red-600" />} color="bg-red-50" />
         <StatCard title="Medium Risk" value={stats.byRiskLevel.MEDIUM} icon={<AlertCircle className="w-5 h-5 text-yellow-600" />} color="bg-yellow-50" />
         <StatCard title="Low Risk" value={stats.byRiskLevel.LOW} icon={<AlertCircle className="w-5 h-5 text-green-600" />} color="bg-green-50" />
@@ -181,7 +181,7 @@ export default function PatientManagement() {
           <table className="w-full min-w-[700px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Patient Name</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Client Name</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Phone</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">CCC Number</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Risk Level</th>
@@ -192,9 +192,9 @@ export default function PatientManagement() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
-                <tr><td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500"><div className="flex items-center justify-center gap-2"><div className="w-5 h-5 border-2 border-navy-900 border-t-transparent rounded-full animate-spin" />Loading patients...</div></td></tr>
+                <tr><td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500"><div className="flex items-center justify-center gap-2"><div className="w-5 h-5 border-2 border-navy-900 border-t-transparent rounded-full animate-spin" />Loading clients...</div></td></tr>
               ) : patients.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500 text-sm">No patients found.</td></tr>
+                <tr><td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500 text-sm">No clients found.</td></tr>
               ) : (
                 patients.map((patient) => (
                   <tr key={patient.id} className="hover:bg-gray-50">
@@ -212,7 +212,7 @@ export default function PatientManagement() {
           </table>
           {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row items-center justify-between px-3 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 gap-2">
-              <p className="text-xs sm:text-sm text-gray-600">Page {page} of {totalPages} ({total} patients)</p>
+              <p className="text-xs sm:text-sm text-gray-600">Page {page} of {totalPages} ({total} clients)</p>
               <div className="flex gap-1">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40" aria-label="Previous page"><ChevronLeft className="w-4 h-4" /></button>
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40" aria-label="Next page"><ChevronRight className="w-4 h-4" /></button>

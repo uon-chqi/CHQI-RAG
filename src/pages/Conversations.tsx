@@ -106,7 +106,7 @@ export default function Conversations() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Conversation History</h2>
-        <p className="text-gray-500">Search and filter past patient interactions</p>
+        <p className="text-gray-500">Search and filter past client interactions</p>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">

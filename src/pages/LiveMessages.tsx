@@ -100,7 +100,7 @@ export default function LiveMessages() {
             <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600">
               {messages.length === 0
-                ? 'No messages yet. Waiting for patient interactions...'
+                ? 'No messages yet. Waiting for client interactions...'
                 : 'No messages match the current filters.'}
             </p>
           </div>

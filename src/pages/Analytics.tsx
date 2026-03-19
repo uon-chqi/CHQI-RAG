@@ -56,7 +56,7 @@ export default function Analytics() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-green-900 mb-1">Analytics Dashboard</h2>
-        <p className="text-green-600">Insights and trends from patient interactions</p>
+        <p className="text-green-600">Insights and trends from client interactions</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

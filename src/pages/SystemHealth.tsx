@@ -178,13 +178,13 @@ export default function SystemHealth() {
           <div className="flex items-start gap-2">
             <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
             <div>
-              <strong>Africa's Talking:</strong> SMS messaging gateway for patient communications
+              <strong>Africa's Talking:</strong> SMS messaging gateway for client communications
             </div>
           </div>
           <div className="flex items-start gap-2">
             <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
             <div>
-              <strong>Twilio:</strong> WhatsApp messaging integration for patient support
+              <strong>Twilio:</strong> WhatsApp messaging integration for client support
             </div>
           </div>
         </div>
