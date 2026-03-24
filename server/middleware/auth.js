@@ -15,6 +15,12 @@ export const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
 
+    // ── DEV BYPASS ── remove this block when done with SMS module
+    if (process.env.NODE_ENV !== 'production' && token === 'dev-bypass-token') {
+      req.user = { id: 'super_admin', role: 'super_admin', name: 'Dev Bypass' };
+      return next();
+    }
+
     if (!token) {
       return res.status(401).json({ success: false, error: 'Access token required' });
     }

@@ -34,6 +34,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Restore session from localStorage on mount
   useEffect(() => {
+    // ── DEV BYPASS ── remove VITE_DEV_BYPASS from .env.development when done
+    if (import.meta.env.VITE_DEV_BYPASS === 'true') {
+      const devUser: AuthUser = { id: 'super_admin', name: 'Dev Bypass', email: 'dev@localhost', role: 'super_admin' };
+      setToken('dev-bypass-token');
+      setUser(devUser);
+      localStorage.setItem('chqi_token', 'dev-bypass-token');
+      localStorage.setItem('chqi_user', JSON.stringify(devUser));
+      setLoading(false);
+      return;
+    }
     const storedToken = localStorage.getItem('chqi_token');
     const storedUser = localStorage.getItem('chqi_user');
     if (storedToken && storedUser) {

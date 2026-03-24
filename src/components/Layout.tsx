@@ -1,38 +1,90 @@
-﻿import { useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { ChevronDown, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const NAVY = '#0A1B3A';
 
-const superAdminNav = [
+type NavLinkItem = {
+  path: string;
+  label: string;
+  requiresSuperAdmin?: boolean;
+};
+
+type NavGroupItem = {
+  label: string;
+  children: NavLinkItem[];
+};
+
+type NavItem = NavLinkItem | NavGroupItem;
+
+function isNavGroup(item: NavItem): item is NavGroupItem {
+  return 'children' in item;
+}
+
+const smsModuleGroup: NavGroupItem = {
+  label: 'SMS Module',
+  children: [
+    { path: '/admin/sms-templates', label: 'Templates', requiresSuperAdmin: true },
+    { path: '/admin/workflows', label: 'Workflows', requiresSuperAdmin: true },
+    { path: '/admin/workflows/builder', label: 'Builder', requiresSuperAdmin: true },
+  ],
+};
+
+const superAdminNav: NavItem[] = [
   { path: '/', label: 'Home' },
   { path: '/conversations', label: 'Conversations' },
   { path: '/live', label: 'Live Messages' },
   { path: '/documents', label: 'Document Library' },
   { path: '/sms-configuration', label: 'SMS Config' },
+  smsModuleGroup,
   { path: '/organisations', label: 'Facilities' },
   { path: '/admin/users', label: 'Users' },
 ];
 
-const nationalNav = [
+const nationalNav: NavItem[] = [
   { path: '/', label: 'Home' },
   { path: '/conversations', label: 'Conversations' },
   { path: '/live', label: 'Live Messages' },
+  smsModuleGroup,
   { path: '/organisations', label: 'Facilities' },
 ];
 
-const countyNav = [
+const countyNav: NavItem[] = [
   { path: '/', label: 'Dashboard' },
   { path: '/conversations', label: 'Conversations' },
+  smsModuleGroup,
 ];
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopSmsOpen, setDesktopSmsOpen] = useState(false);
+  const [mobileSmsOpen, setMobileSmsOpen] = useState(false);
   const location = useLocation();
   const { user, logout, isSuperAdmin, isNational, isCounty } = useAuth();
+  const desktopSmsRef = useRef<HTMLDivElement | null>(null);
 
   const navItems = isSuperAdmin ? superAdminNav : isNational ? nationalNav : countyNav;
   const isActive = (path: string) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+
+  const canAccess = (item: NavLinkItem) => !item.requiresSuperAdmin || isSuperAdmin;
+  const isGroupActive = (group: NavGroupItem) => group.children.some((child) => isActive(child.path));
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!desktopSmsRef.current) return;
+      if (!desktopSmsRef.current.contains(event.target as Node)) {
+        setDesktopSmsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    setDesktopSmsOpen(false);
+    setMobileSmsOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -50,22 +102,81 @@ export default function Layout() {
 
             {/* Desktop Nav */}
             <nav className="hidden lg:flex items-center gap-0.5 flex-1 justify-center">
-              {navItems.map(item => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`relative px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all whitespace-nowrap ${
-                    isActive(item.path)
-                      ? 'bg-white/15 text-white shadow-sm'
-                      : 'text-blue-200/80 hover:text-white hover:bg-white/[0.07]'
-                  }`}
-                >
-                  {item.label}
-                  {isActive(item.path) && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-blue-400 rounded-full" />
-                  )}
-                </Link>
-              ))}
+              {navItems.map((item) => {
+                if (isNavGroup(item)) {
+                  const active = isGroupActive(item);
+                  return (
+                    <div key={item.label} className="relative" ref={desktopSmsRef}>
+                      <button
+                        onClick={() => setDesktopSmsOpen((v) => !v)}
+                        className={`relative px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all whitespace-nowrap inline-flex items-center gap-1 ${
+                          active || desktopSmsOpen
+                            ? 'bg-white/15 text-white shadow-sm'
+                            : 'text-blue-200/80 hover:text-white hover:bg-white/[0.07]'
+                        }`}
+                        aria-expanded={desktopSmsOpen}
+                        aria-label="Toggle SMS Module menu"
+                      >
+                        {item.label}
+                        <ChevronDown size={14} className={`transition-transform ${desktopSmsOpen ? 'rotate-180' : ''}`} />
+                        {active && (
+                          <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-blue-400 rounded-full" />
+                        )}
+                      </button>
+
+                      {desktopSmsOpen && (
+                        <div className="absolute top-full mt-2 left-0 min-w-52 rounded-xl border border-white/10 bg-[#0E2246] shadow-xl p-1.5 z-50">
+                          {item.children.map((child) => {
+                            const childActive = isActive(child.path);
+                            if (!canAccess(child)) {
+                              return (
+                                <div
+                                  key={child.path}
+                                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-blue-200/40 text-[13px]"
+                                  title="Super Admin access required"
+                                >
+                                  <Lock size={12} />
+                                  <span>{child.label}</span>
+                                </div>
+                              );
+                            }
+                            return (
+                              <Link
+                                key={child.path}
+                                to={child.path}
+                                className={`block px-3 py-2 rounded-lg text-[13px] transition-all ${
+                                  childActive
+                                    ? 'bg-white/15 text-white'
+                                    : 'text-blue-200/80 hover:text-white hover:bg-white/[0.07]'
+                                }`}
+                              >
+                                {child.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`relative px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all whitespace-nowrap ${
+                      isActive(item.path)
+                        ? 'bg-white/15 text-white shadow-sm'
+                        : 'text-blue-200/80 hover:text-white hover:bg-white/[0.07]'
+                    }`}
+                  >
+                    {item.label}
+                    {isActive(item.path) && (
+                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-blue-400 rounded-full" />
+                    )}
+                  </Link>
+                );
+              })}
             </nav>
 
             {/* User Section */}
@@ -142,23 +253,76 @@ export default function Layout() {
 
         {/* Nav items */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                isActive(item.path)
-                  ? 'bg-white/15 text-white shadow-sm'
-                  : 'text-blue-200/80 hover:bg-white/[0.07] hover:text-white'
-              }`}
-            >
-              {item.label}
-              {isActive(item.path) && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
-              )}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            if (isNavGroup(item)) {
+              const active = isGroupActive(item);
+              return (
+                <div key={item.label} className="rounded-xl bg-white/[0.03] border border-white/5">
+                  <button
+                    onClick={() => setMobileSmsOpen((v) => !v)}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      active ? 'text-white' : 'text-blue-200/80 hover:text-white'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    <ChevronDown size={14} className={`transition-transform ${mobileSmsOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {mobileSmsOpen && (
+                    <div className="px-2 pb-2 space-y-1">
+                      {item.children.map((child) => {
+                        const childActive = isActive(child.path);
+                        if (!canAccess(child)) {
+                          return (
+                            <div
+                              key={child.path}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg text-blue-200/40 text-sm"
+                            >
+                              <Lock size={12} />
+                              <span>{child.label}</span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <Link
+                            key={child.path}
+                            to={child.path}
+                            onClick={() => setMobileOpen(false)}
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                              childActive
+                                ? 'bg-white/15 text-white'
+                                : 'text-blue-200/80 hover:bg-white/[0.07] hover:text-white'
+                            }`}
+                          >
+                            {child.label}
+                            {childActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  isActive(item.path)
+                    ? 'bg-white/15 text-white shadow-sm'
+                    : 'text-blue-200/80 hover:bg-white/[0.07] hover:text-white'
+                }`}
+              >
+                {item.label}
+                {isActive(item.path) && (
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Drawer footer — user info */}

@@ -376,6 +376,15 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 ### System Health
 - `GET /api/health` - Check all services
 
+### SMS Module (Standalone SMS Backend)
+- `GET /communications/templates/variables` - List allowed `{{variable}}` tags (public)
+- `POST /communications/templates/preview` - Compile template preview with char count (public)
+- `POST /sms-templates` - Create SMS template (JWT required)
+- `GET /sms-templates` - List SMS templates visible to current user (JWT required)
+- `GET /sms-templates/:id` - Get SMS template by ID (JWT required)
+- `PATCH /sms-templates/:id` - Update SMS template (JWT required)
+- `DELETE /sms-templates/:id` - Delete SMS template (JWT required)
+
 ### Webhooks (Coming Soon)
 - `POST /api/webhooks/sms/receive` - Africa's Talking SMS webhook
 - `POST /api/webhooks/whatsapp/receive` - Twilio WhatsApp webhook
@@ -388,6 +397,14 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 4. **Analytics** (`/analytics`) - Charts and insights
 5. **Live Messages** (`/live`) - Real-time feed (coming soon)
 6. **System Health** (`/system`) - Service monitoring
+7. **SMS Templates** (`/admin/sms-templates`) - Reusable SMS template manager
+8. **SMS Workflows** (`/admin/workflows`) - Workflow list and management
+9. **Workflow Builder** (`/admin/workflows/builder/:id?`) - Create/edit workflow graph
+
+### Menu Notes
+- `SMS Config` remains a top-level menu item.
+- `SMS Module` appears as a dropdown with `Templates`, `Workflows`, and `Builder`.
+- Non-super-admin roles can see the dropdown, but protected routes still enforce access rules.
 
 ## Security & Best Practices
 

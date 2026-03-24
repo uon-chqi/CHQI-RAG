@@ -17,6 +17,9 @@ import UserManagement from './pages/UserManagement';
 import FacilityDetail from './pages/FacilityDetail';
 import Chatbot from './pages/Chatbot';
 import FlaggedPatients from './pages/FlaggedPatients';
+import SmsTemplates from './pages/smsmodule/SmsTemplates';
+import WorkflowsList from './pages/smsmodule/WorkflowsList';
+import WorkflowBuilder from './pages/smsmodule/WorkflowBuilder';
 
 export default function App() {
   return (
@@ -48,6 +51,32 @@ export default function App() {
             <Route path="flagged-patients/:facilityId" element={<FlaggedPatients />} />
             <Route path="admin/hierarchy" element={<AdminDashboard />} />
             <Route path="admin/users" element={<UserManagement />} />
+
+            {/* ── SMS Workflow Engine ─────────────────────────────── */}
+            <Route
+              path="admin/sms-templates"
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <SmsTemplates />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/workflows"
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <WorkflowsList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/workflows/builder/:id?"
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <WorkflowBuilder />
+                </ProtectedRoute>
+              }
+            />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

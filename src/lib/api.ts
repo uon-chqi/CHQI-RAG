@@ -1,3 +1,6 @@
+import axios from 'axios';
+import type { SmsTemplate, SmsTemplateApi, Workflow } from '../types/sms';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // Helper to get auth token and build headers
@@ -233,4 +236,253 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch facilities');
     return res.json();
   },
+};
+
+// ================================================================
+// STANDALONE SMS API — NestJS backend (Railway)
+// ================================================================
+
+export const smsApi = axios.create({
+  baseURL: import.meta.env.VITE_SMS_API_URL || 'https://risebackend-production.up.railway.app',
+  headers: { 'Content-Type': 'application/json' },
+});
+
+const SMS_TOKEN_STORAGE_KEY = 'chqi_sms_token';
+// In development, keep auto-login enabled by default unless explicitly set to false.
+const SMS_AUTO_LOGIN = import.meta.env.DEV && import.meta.env.VITE_SMS_AUTO_LOGIN !== 'false';
+const SMS_LOGIN_EMAIL = import.meta.env.VITE_SMS_LOGIN_EMAIL || 'ngigid0@gmail.com';
+const SMS_LOGIN_PASSWORD = import.meta.env.VITE_SMS_LOGIN_PASSWORD || '123456';
+
+let smsLoginPromise: Promise<string | null> | null = null;
+
+function isPublicSmsEndpoint(url?: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes('/communications/templates/variables') ||
+    url.includes('/communications/templates/preview')
+  );
+}
+
+function extractSmsToken(payload: unknown): string | null {
+  const data = payload as {
+    access_token?: string;
+    accessToken?: string;
+    token?: string;
+    data?: { access_token?: string; accessToken?: string; token?: string };
+  };
+
+  return (
+    data?.data?.access_token ||
+    data?.access_token ||
+    data?.data?.accessToken ||
+    data?.accessToken ||
+    data?.data?.token ||
+    data?.token ||
+    null
+  );
+}
+
+function mapTemplateFromApi(template: SmsTemplateApi): SmsTemplate {
+  return {
+    id: template.id,
+    facilityId: template.facilityId ?? template.facility_id ?? null,
+    name: template.name,
+    body: template.body,
+    isActive: template.isActive ?? template.is_active ?? true,
+    createdAt: template.createdAt ?? template.created_at ?? '',
+    updatedAt: template.updatedAt ?? template.updated_at ?? '',
+  };
+}
+
+function mapTemplatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+
+  if (typeof data.name === 'string') payload.name = data.name;
+  if (typeof data.body === 'string') payload.body = data.body;
+
+  if ('facilityId' in data) {
+    payload.facility_id = data.facilityId ?? null;
+  }
+
+  if ('isActive' in data && typeof data.isActive === 'boolean') {
+    payload.is_active = data.isActive;
+  }
+
+  return payload;
+}
+
+function extractTemplateList(payload: unknown): SmsTemplate[] {
+  const source = payload as SmsTemplateApi[] | { data?: SmsTemplateApi[] };
+  const list = Array.isArray(source)
+    ? source
+    : Array.isArray(source?.data)
+      ? source.data
+      : [];
+  return list.map(mapTemplateFromApi);
+}
+
+function extractSingleTemplate(payload: unknown): SmsTemplate {
+  const source = payload as SmsTemplateApi | { data?: SmsTemplateApi };
+  const template = source?.data ?? source;
+  return mapTemplateFromApi(template as SmsTemplateApi);
+}
+
+async function ensureSmsAuthToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+
+  const cached = localStorage.getItem(SMS_TOKEN_STORAGE_KEY);
+  if (cached) return cached;
+
+  if (!SMS_AUTO_LOGIN || !SMS_LOGIN_EMAIL || !SMS_LOGIN_PASSWORD) return null;
+  if (smsLoginPromise) return smsLoginPromise;
+
+  smsLoginPromise = (async () => {
+    try {
+      const baseURL = smsApi.defaults.baseURL || 'https://risebackend-production.up.railway.app';
+      const res = await axios.post(
+        `${baseURL}/auth/login`,
+        { email: SMS_LOGIN_EMAIL, password: SMS_LOGIN_PASSWORD },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      const token = extractSmsToken(res.data);
+      if (token) {
+        localStorage.setItem(SMS_TOKEN_STORAGE_KEY, token);
+      }
+      return token;
+    } catch {
+      return null;
+    } finally {
+      smsLoginPromise = null;
+    }
+  })();
+
+  return smsLoginPromise;
+}
+
+// Attach JWT for SMS backend (prefers SMS-specific token)
+smsApi.interceptors.request.use(async (config) => {
+  if (typeof window === 'undefined') return config;
+
+  // These endpoints are public — skip auth header entirely to avoid CORS/preflight issues.
+  if (isPublicSmsEndpoint(config.url)) {
+    return config;
+  }
+
+  if (!config.headers) {
+    config.headers = {};
+  }
+
+  if (config.headers.Authorization) {
+    return config;
+  }
+
+  const smsToken = localStorage.getItem(SMS_TOKEN_STORAGE_KEY);
+  if (smsToken) {
+    config.headers.Authorization = `Bearer ${smsToken}`;
+    return config;
+  }
+
+  const autoToken = await ensureSmsAuthToken();
+  if (autoToken) {
+    config.headers.Authorization = `Bearer ${autoToken}`;
+    return config;
+  }
+
+  // Fallback for existing sessions that only have the app token
+  const appToken = localStorage.getItem('chqi_token');
+  if (appToken) {
+    config.headers.Authorization = `Bearer ${appToken}`;
+  }
+
+  return config;
+});
+
+// On 401, try one silent re-auth in dev mode and retry once
+smsApi.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error?.config as { _smsRetried?: boolean; headers?: Record<string, string> } | undefined;
+    const status = error?.response?.status;
+
+    if (!originalRequest || originalRequest._smsRetried || status !== 401 || !SMS_AUTO_LOGIN) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._smsRetried = true;
+    localStorage.removeItem(SMS_TOKEN_STORAGE_KEY);
+
+    const freshToken = await ensureSmsAuthToken();
+    if (!freshToken) {
+      return Promise.reject(error);
+    }
+
+    originalRequest.headers = {
+      ...(originalRequest.headers || {}),
+      Authorization: `Bearer ${freshToken}`,
+    };
+
+    return smsApi(originalRequest);
+  }
+);
+
+// ── SMS Services ────────────────────────────────────────────────
+
+export const smsServices = {
+  // --- Template Variables (for building template bodies) ---
+  getTemplateVariables: () =>
+    smsApi.get('/communications/templates/variables').then((r) => r.data),
+
+  previewTemplate: (template: string) =>
+    smsApi.post('/communications/templates/preview', { template }).then((r) => r.data),
+
+  // --- Template CRUD ---
+  getTemplates: (facilityId?: string) =>
+    smsApi
+      .get('/sms-templates', { params: facilityId ? { facility_id: facilityId } : {} })
+      .then((r) => extractTemplateList(r.data)),
+
+  getTemplateById: (id: string) =>
+    smsApi.get(`/sms-templates/${id}`).then((r) => extractSingleTemplate(r.data)),
+
+  createTemplate: (data: Partial<SmsTemplate>) =>
+    smsApi
+      .post('/sms-templates', mapTemplatePayloadToApi(data))
+      .then((r) => extractSingleTemplate(r.data)),
+
+  updateTemplate: (id: string, data: Partial<SmsTemplate>) =>
+    smsApi
+      .patch(`/sms-templates/${id}`, mapTemplatePayloadToApi(data))
+      .then((r) => extractSingleTemplate(r.data)),
+
+  deleteTemplate: (id: string) =>
+    smsApi.delete(`/sms-templates/${id}`).then((r) => r.data),
+
+  // --- Workflow Discovery (toolbox config endpoints) ---
+  getWorkflowTriggers: () =>
+    smsApi.get('/communications/workflows/config/triggers').then((r) => r.data),
+
+  getWorkflowActions: () =>
+    smsApi.get('/communications/workflows/config/actions').then((r) => r.data),
+
+  getSystemModules: () =>
+    smsApi.get('/communications/workflows/config/system-modules').then((r) => r.data),
+
+  // --- Workflow CRUD ---
+  getWorkflows: (facilityId?: string) =>
+    smsApi
+      .get('/communications/workflows', { params: facilityId ? { facilityId } : {} })
+      .then((r) => r.data),
+
+  getWorkflowById: (id: string) =>
+    smsApi.get(`/communications/workflows/${id}`).then((r) => r.data),
+
+  createWorkflow: (data: Partial<Workflow>) =>
+    smsApi.post('/communications/workflows', data).then((r) => r.data),
+
+  updateWorkflow: (id: string, data: Partial<Workflow>) =>
+    smsApi.patch(`/communications/workflows/${id}`, data).then((r) => r.data),
+
+  deleteWorkflow: (id: string) =>
+    smsApi.delete(`/communications/workflows/${id}`).then((r) => r.data),
 };
