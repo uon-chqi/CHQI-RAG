@@ -21,6 +21,7 @@ import FlaggedPatients from './pages/FlaggedPatients';
 import SmsTemplates from './pages/smsmodule/SmsTemplates';
 import WorkflowsList from './pages/smsmodule/WorkflowsList';
 import WorkflowBuilder from './pages/smsmodule/WorkflowBuilder';
+import WorkflowSimulation from './pages/smsmodule/WorkflowSimulation';
 
 export default function App() {
   return (
@@ -76,6 +77,14 @@ export default function App() {
               element={
                 <ProtectedRoute requiredRole="super_admin">
                   <WorkflowBuilder />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/workflow-simulation"
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <WorkflowSimulation />
                 </ProtectedRoute>
               }
             />

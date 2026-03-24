@@ -1,5 +1,11 @@
 import axios from 'axios';
-import type { SmsTemplate, SmsTemplateApi, Workflow } from '../types/sms';
+import type {
+  SmsTemplate,
+  SmsTemplateApi,
+  Workflow,
+  WorkflowTriggerRequest,
+  WorkflowTriggerResponse,
+} from '../types/sms';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -496,6 +502,9 @@ export const smsServices = {
 
   updateWorkflow: (id: string, data: Partial<Workflow>) =>
     smsApi.patch(`/communications/workflows/${id}`, data).then((r) => r.data),
+
+  triggerWorkflow: (id: string, data: WorkflowTriggerRequest) =>
+    smsApi.post(`/communications/workflows/${id}/trigger`, data).then((r) => r.data as WorkflowTriggerResponse),
 
   deleteWorkflow: (id: string) =>
     smsApi.delete(`/communications/workflows/${id}`).then((r) => r.data),

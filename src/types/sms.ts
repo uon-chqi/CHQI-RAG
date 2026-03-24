@@ -73,6 +73,15 @@ export interface Workflow {
   updatedAt: string;
 }
 
+export interface WorkflowTriggerRequest {
+  cccNumber: string;
+}
+
+export interface WorkflowTriggerResponse {
+  success: boolean;
+  message: string;
+}
+
 // --- API RESPONSE WRAPPERS ---
 
 export interface SmsApiResponse<T> {
