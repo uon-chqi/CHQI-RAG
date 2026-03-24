@@ -21,14 +21,14 @@ function NodeWrapper({ children, isSelected, borderColor }: NodeWrapperProps) {
 }
 
 export function SendSmsNode({ data, selected }: NodeProps) {
-  const typedData = data as { templateName?: string };
+  const typedData = data as { templateName?: string; nodeLabel?: string };
 
   return (
     <NodeWrapper isSelected={selected} borderColor="border-blue-400">
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-blue-400" />
       <div className="flex items-center gap-2 bg-blue-50 p-2 border-b border-blue-100 rounded-t-sm">
         <MessageSquare size={16} className="text-blue-600" />
-        <span className="text-sm font-semibold text-blue-900">Send SMS</span>
+        <span className="text-sm font-semibold text-blue-900 truncate">{typedData.nodeLabel || 'Send SMS'}</span>
       </div>
       <div className="p-3 text-xs text-gray-600">
         {typedData.templateName ? (
@@ -45,7 +45,7 @@ export function SendSmsNode({ data, selected }: NodeProps) {
 }
 
 export function WaitNode({ data, selected }: NodeProps) {
-  const typedData = data as { timeoutHours?: number; branches?: Record<string, unknown> };
+  const typedData = data as { timeoutHours?: number; branches?: Record<string, unknown>; nodeLabel?: string };
   const branchesCount = typedData.branches ? Object.keys(typedData.branches).length : 0;
 
   return (
@@ -53,7 +53,7 @@ export function WaitNode({ data, selected }: NodeProps) {
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-orange-400" />
       <div className="flex items-center gap-2 bg-orange-50 p-2 border-b border-orange-100 rounded-t-sm">
         <Clock size={16} className="text-orange-600" />
-        <span className="text-sm font-semibold text-orange-900">Wait for Reply</span>
+        <span className="text-sm font-semibold text-orange-900 truncate">{typedData.nodeLabel || 'Wait for Reply'}</span>
       </div>
       <div className="p-3 text-xs text-gray-600 space-y-1">
         <div>
@@ -69,14 +69,14 @@ export function WaitNode({ data, selected }: NodeProps) {
 }
 
 export function SystemActionNode({ data, selected }: NodeProps) {
-  const typedData = data as { module?: string; action?: string };
+  const typedData = data as { module?: string; action?: string; nodeLabel?: string };
 
   return (
     <NodeWrapper isSelected={selected} borderColor="border-green-400">
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-green-400" />
       <div className="flex items-center gap-2 bg-green-50 p-2 border-b border-green-100 rounded-t-sm">
         <Settings size={16} className="text-green-600" />
-        <span className="text-sm font-semibold text-green-900">System Action</span>
+        <span className="text-sm font-semibold text-green-900 truncate">{typedData.nodeLabel || 'System Action'}</span>
       </div>
       <div className="p-3 text-xs text-gray-600">
         {typedData.module ? (

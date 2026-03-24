@@ -147,6 +147,7 @@ function BuilderCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, s
         data: {
           actionType: type,
           isFirstStep: false,
+          ...(type === StepActionType.WAIT_FOR_REPLY ? { retryLimit: 3, timeoutHours: 24 } : {}),
         },
       };
 
@@ -285,8 +286,10 @@ export default function WorkflowBuilder() {
     loadWorkflow();
   }, [id, navigate, setEdges, setNodes]);
 
-  const handleSave = async () => {
-    const validationError = validateWorkflowGraph(workflowMetadata, nodes, edges);
+  const handleSave = async (options?: { asDraft?: boolean }) => {
+    const metadataToSave = options?.asDraft ? { ...workflowMetadata, isActive: false } : workflowMetadata;
+
+    const validationError = validateWorkflowGraph(metadataToSave, nodes, edges);
     if (validationError) {
       toast.error(validationError);
       return;
@@ -294,20 +297,24 @@ export default function WorkflowBuilder() {
 
     setIsSaving(true);
     try {
-      const payload = serializeWorkflowPayload(workflowMetadata, nodes, edges);
+      const payload = serializeWorkflowPayload(metadataToSave, nodes, edges);
 
       if (workflowMetadata.id) {
-        const updatePayload = serializeUpdatePayload(workflowMetadata, nodes, edges);
+        const updatePayload = serializeUpdatePayload(metadataToSave, nodes, edges);
         await smsServices.updateWorkflow(workflowMetadata.id, updatePayload);
-        toast.success('Workflow updated successfully.');
+        toast.success(options?.asDraft ? 'Draft saved successfully.' : 'Workflow updated successfully.');
       } else {
         const res = await smsServices.createWorkflow(payload);
         const created = normalizeWorkflowPayload(res);
         if (created?.id) {
-          setWorkflowMetadata((prev) => ({ ...prev, id: created.id }));
+          setWorkflowMetadata((prev) => ({ ...prev, id: created.id, isActive: metadataToSave.isActive }));
           navigate(`/admin/workflows/builder/${created.id}`, { replace: true });
         }
-        toast.success('Workflow created successfully.');
+        toast.success(options?.asDraft ? 'Draft saved successfully.' : 'Workflow created successfully.');
+      }
+
+      if (options?.asDraft) {
+        setWorkflowMetadata((prev) => ({ ...prev, isActive: false }));
       }
     } catch (err) {
       console.error('Failed to save workflow', err);
@@ -364,6 +371,16 @@ export default function WorkflowBuilder() {
               />
               Active
             </label>
+
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={() => handleSave({ asDraft: true })}
+              disabled={isSaving || isLoadingWorkflow}
+            >
+              {isSaving ? 'Saving...' : 'Save Draft'}
+            </Button>
+
             <Button className="flex items-center gap-2" onClick={handleSave} disabled={isSaving || isLoadingWorkflow}>
               {isSaving ? 'Saving...' : (<><Save size={16} /> Save Workflow</>)}
             </Button>
