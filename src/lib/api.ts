@@ -311,6 +311,20 @@ function mapTemplatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unk
   return payload;
 }
 
+// PATCH /sms-templates/:id only accepts name, body, is_active — facility_id is create-only
+function mapTemplateUpdatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+
+  if (typeof data.name === 'string') payload.name = data.name;
+  if (typeof data.body === 'string') payload.body = data.body;
+
+  if ('isActive' in data && typeof data.isActive === 'boolean') {
+    payload.is_active = data.isActive;
+  }
+
+  return payload;
+}
+
 function extractTemplateList(payload: unknown): SmsTemplate[] {
   const source = payload as SmsTemplateApi[] | { data?: SmsTemplateApi[] };
   const list = Array.isArray(source)
@@ -452,7 +466,7 @@ export const smsServices = {
 
   updateTemplate: (id: string, data: Partial<SmsTemplate>) =>
     smsApi
-      .patch(`/sms-templates/${id}`, mapTemplatePayloadToApi(data))
+      .patch(`/sms-templates/${id}`, mapTemplateUpdatePayloadToApi(data))
       .then((r) => extractSingleTemplate(r.data)),
 
   deleteTemplate: (id: string) =>

@@ -14,15 +14,20 @@ This system uses **local embeddings** and **vector search** to retrieve relevant
 - ✅ **Admin Dashboard**: Real-time monitoring and document management
 - ✅ **Citation System**: Every response includes source references
 - ✅ **Session Management**: Track patient interactions
+- ✅ **Phase 1 (SMS Foundation)**: Dual backend wiring, SMS API client, strict SMS TypeScript models, and protected routes
+- ✅ **Phase 2 (Template Manager)**: SMS template list + modal composer, variable insertion, and live preview integration
+- ✅ **Phase 3 (Builder Foundation)**: React Flow canvas with custom nodes, drag-and-drop toolbox, and edge connections
+- ✅ **Phase 4 (Node Configuration Drawers)**: Dynamic right-side node forms for SEND_SMS, WAIT_FOR_REPLY, and SYSTEM_ACTION
+- ✅ **Phase 5 (State Serialization & Submission)**: Graph-to-DTO serialization utility, builder metadata controls, and create/update workflow submission
+- ✅ **Phase 5.1 (Branch Routing UX + Validation + Toasts)**: WAIT_FOR_REPLY branch target-node selectors, cycle/branch completeness checks, and toast-based save feedback
+- ✅ **Phase 6 (Workflow Dashboard & Edit Mode UX)**: Quick activate/pause toggles in workflow list, reusable graph deserializer, and edit-mode loading state
 
 ### to do
 
-- 🔜 **SMS Integration**: Africa's Talking API for SMS messaging
-- 🔜 **WhatsApp Integration**: Twilio API for WhatsApp messaging
-- 🔜 **Webhook Handlers**: Receive and respond to patient messages
-- 🔜 **Rate Limiting**: 5 messages per minute per patient
-- 🔜 **Real-time Updates**: Live message feed
-- 🔜 **Multi-language Support**: Translation for local languages
+- 🔜 **Phase 7 (Execution Runtime UX)**: Workflow execution logs, replay tools, and timeout/debug views
+- 🔜 **Messaging Integrations**: Africa's Talking SMS and Twilio WhatsApp production rollout
+- 🔜 **Webhook Hardening**: Signature verification, retries, and delivery state reconciliation
+- 🔜 **Global Enhancements**: Real-time updates, multilingual support, and stronger operational analytics
 
 ## System Architecture
 
@@ -384,6 +389,11 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 - `GET /sms-templates/:id` - Get SMS template by ID (JWT required)
 - `PATCH /sms-templates/:id` - Update SMS template (JWT required)
 - `DELETE /sms-templates/:id` - Delete SMS template (JWT required)
+- `POST /communications/workflows` - Create workflow from serialized graph payload (JWT required)
+- `GET /communications/workflows` - List workflows (JWT required)
+- `GET /communications/workflows/:id` - Get workflow for builder edit mode (JWT required)
+- `PATCH /communications/workflows/:id` - Update existing workflow (JWT required)
+- `DELETE /communications/workflows/:id` - Delete workflow (JWT required)
 
 ### Webhooks (Coming Soon)
 - `POST /api/webhooks/sms/receive` - Africa's Talking SMS webhook
@@ -436,28 +446,46 @@ curl -X POST http://localhost:5000/api/webhooks/sms/receive \
 - [x] Admin dashboard
 
 ### Phase 2: Messaging Integration
-- [ ] Africa's Talking SMS setup
-  - [ ] Account registration
-  - [ ] Webhook configuration
-  - [ ] Message sending
-  - [ ] Delivery reports
-- [ ] Twilio WhatsApp setup
-  - [ ] Sandbox testing
-  - [ ] Production approval
-  - [ ] Media message support
-- [ ] Rate limiting per phone number
-- [ ] Session management
-- [ ] Message queue for async processing
+- [x] Dual-backend frontend integration (`VITE_SMS_API_URL`, dedicated SMS client)
+- [x] SMS template manager UI + modal composer
+- [x] Template variable loading and live preview wiring
+- [x] SMS module navigation and protected routing baseline
+- [ ] Africa's Talking SMS rollout
+- [ ] Twilio WhatsApp rollout
+- [ ] Webhook reliability and delivery reporting
 
 ### Phase 3: Enhanced Features
-- [ ] Multi-language support (Swahili, etc.)
-- [ ] Voice message support
-- [ ] Image/document upload from patients
-- [ ] Appointment scheduling
-- [ ] Medication reminders
-- [ ] Patient profiles
-- [ ] Analytics dashboard improvements
-- [ ] Export to CSV/PDF
+- [x] Workflow builder visual foundation with React Flow
+- [x] Custom workflow node rendering (SEND_SMS, WAIT_FOR_REPLY, SYSTEM_ACTION)
+- [x] Drag-and-drop toolbox + node connection mechanics
+- [x] Workflows index page baseline (`/admin/workflows`)
+- [x] Node configuration panel with dynamic forms
+- [x] Template and system-module powered node configuration options
+- [x] Live node-data updates from configuration drawer
+- [ ] Workflow graph persistence, import/export, and execution diagnostics
+
+### Phase 4: Workflow Configuration
+- [x] Right-side node configuration drawer
+- [x] SEND_SMS template selector bound to node data
+- [x] WAIT_FOR_REPLY timeout and branch-key builder
+- [x] SYSTEM_ACTION module/action/value form
+- [x] Branch target-node routing selector
+- [x] Full config validation + branch-routing guardrails
+
+### Phase 5: Workflow Persistence & Submission
+- [x] Graph-to-DTO serialization utility in builder module
+- [x] Save-time workflow metadata controls (name, trigger, scope, active)
+- [x] Frontend create/update submission wiring for `/communications/workflows`
+- [x] Builder edit-mode workflow hydration from API
+- [x] Advanced graph validation (cycle/branch completeness rules)
+- [x] Toast notifications replacing blocking alert dialogs in workflow builder
+
+### Phase 6: Workflow Dashboard & Edit Mode UX
+- [x] Workflow list quick activate/pause toggle with inline status control
+- [x] Dedicated graph deserializer utility (`workflowDeserializer.ts`) for edit-mode hydration
+- [x] Builder edit-mode loading spinner and graceful redirect on load failure
+- [x] WAIT_FOR_REPLY branch target selector fed by available nodes in builder context
+- [x] Dashboard action feedback via toast notifications for toggle/delete failures
 
 ## Development Tools
 

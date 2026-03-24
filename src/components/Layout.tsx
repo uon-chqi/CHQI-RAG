@@ -27,7 +27,6 @@ const smsModuleGroup: NavGroupItem = {
   children: [
     { path: '/admin/sms-templates', label: 'Templates', requiresSuperAdmin: true },
     { path: '/admin/workflows', label: 'Workflows', requiresSuperAdmin: true },
-    { path: '/admin/workflows/builder', label: 'Builder', requiresSuperAdmin: true },
   ],
 };
 
