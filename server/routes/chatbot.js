@@ -16,11 +16,11 @@ router.get('/session/:clientid', async (req, res) => {
     let result;
     try {
       result = await db.query(`
-        SELECT id AS patient_id, first_name, last_name, phone, ccc_number, f.name AS facility_name
-        FROM patients p
-        LEFT JOIN facilities f ON p.facility_id = f.id
-        WHERE p.id = $1
-      `, [clientid]);
+  SELECT p.id AS patient_id, p.first_name, p.last_name, p.phone, p.ccc_number, f.name AS facility_name
+  FROM patients p
+  LEFT JOIN facilities f ON p.facility_id = f.id
+  WHERE p.id = $1
+`, [clientid]);
     } catch (err) {
       return res.status(500).json({ success: false, error: 'Database error' });
     }
