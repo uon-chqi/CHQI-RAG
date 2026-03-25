@@ -137,14 +137,14 @@ export default function Chatbot() {
   // ── LOGIN SCREEN ──
   if (!session) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           {/* Logo / brand */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-600 mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-700 mb-4">
               <Bot className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">CHQI Health Assistant</h1>
+            <h1 className="text-2xl font-bold text-navy-900">CHQI Health Assistant</h1>
             <p className="text-sm text-gray-500 mt-1">Chat with our AI health assistant</p>
           </div>
 
@@ -182,7 +182,7 @@ export default function Chatbot() {
             <button
               type="submit"
               disabled={loggingIn}
-              className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors"
+              className="w-full bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors"
             >
               {loggingIn ? 'Verifying…' : 'Start Chatting'}
             </button>
@@ -194,21 +194,21 @@ export default function Chatbot() {
 
   // ── CHAT SCREEN ──
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Chat header */}
-      <header className="sticky top-0 z-10 bg-teal-700 text-white px-4 py-3 flex items-center justify-between shadow-md">
+      <header className="sticky top-0 z-10 bg-blue-700 text-white px-4 py-3 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
             <Bot className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-sm font-semibold">CHQI Health Assistant</h2>
-            <p className="text-[11px] text-teal-200">
+            <p className="text-[11px] text-blue-200">
               {session.first_name} {session.last_name} &middot; {session.facility_name}
             </p>
           </div>
         </div>
-        <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-teal-200 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
+        <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-blue-200 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
           <LogOut className="w-3.5 h-3.5" /> Logout
         </button>
       </header>
@@ -221,7 +221,7 @@ export default function Chatbot() {
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center text-gray-400 mt-20">
-            <Bot className="w-10 h-10 mx-auto mb-3 text-teal-400" />
+            <Bot className="w-10 h-10 mx-auto mb-3 text-blue-400" />
             <p className="text-sm">Hello {session.first_name}! How can I help you today?</p>
             <p className="text-xs mt-1">Ask me anything about your health.</p>
           </div>
@@ -231,7 +231,7 @@ export default function Chatbot() {
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
                   msg.sender === 'user'
-                    ? 'bg-teal-600 text-white rounded-br-md'
+                    ? 'bg-blue-700 text-white rounded-br-md'
                     : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
                 }`}
               >
@@ -242,7 +242,7 @@ export default function Chatbot() {
                 ) : (
                   <>
                     <p className="whitespace-pre-wrap">{msg.text}</p>
-                    <p className={`text-[10px] mt-1 ${msg.sender === 'user' ? 'text-teal-200' : 'text-gray-400'}`}>
+                    <p className={`text-[10px] mt-1 ${msg.sender === 'user' ? 'text-blue-200' : 'text-gray-400'}`}>
                       {formatTime(msg.timestamp)}
                     </p>
                   </>
@@ -263,13 +263,13 @@ export default function Chatbot() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
             placeholder="Type a message…"
-            className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+            className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             disabled={sending}
           />
           <button
             onClick={handleSend}
             disabled={sending || !input.trim()}
-            className="w-10 h-10 rounded-full bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white flex items-center justify-center transition-colors"
+            className="w-10 h-10 rounded-full bg-blue-700 hover:bg-blue-800 disabled:opacity-40 text-white flex items-center justify-center transition-colors"
           >
             <Send className="w-4 h-4" />
           </button>

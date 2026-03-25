@@ -34,7 +34,7 @@ export default function App() {
             }
           >
             <Route index element={<Dashboard />} />
-            <Route path="chat" element={<Chat />} />
+            <Route path="chat" element={<Chatbot />} />
             <Route path="live" element={<LiveMessages />} />
             <Route path="conversations" element={<Conversations />} />
             <Route path="documents" element={<Documents />} />

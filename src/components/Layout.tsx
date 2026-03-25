@@ -7,6 +7,7 @@ const NAVY = '#0A1B3A';
 const superAdminNav = [
   { path: '/', label: 'Home' },
   { path: '/conversations', label: 'Conversations' },
+  { path: '/chat', label: 'Chat' },
   { path: '/live', label: 'Live Messages' },
   { path: '/documents', label: 'Document Library' },
   { path: '/sms-configuration', label: 'SMS Config' },
@@ -17,6 +18,7 @@ const superAdminNav = [
 const nationalNav = [
   { path: '/', label: 'Home' },
   { path: '/conversations', label: 'Conversations' },
+  { path: '/chat', label: 'Chat' },
   { path: '/live', label: 'Live Messages' },
   { path: '/organisations', label: 'Facilities' },
 ];
@@ -24,6 +26,7 @@ const nationalNav = [
 const countyNav = [
   { path: '/', label: 'Dashboard' },
   { path: '/conversations', label: 'Conversations' },
+  { path: '/chat', label: 'Chat' },
 ];
 
 export default function Layout() {
