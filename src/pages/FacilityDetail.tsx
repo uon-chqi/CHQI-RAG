@@ -134,7 +134,7 @@ export default function FacilityDetail() {
             <span className="text-3xl font-extrabold text-emerald-600">{lowRisk}</span>
             <p className="text-xs text-gray-500 mt-1">Low Risk</p>
           </div>
-          <Link to={`/flagged-patients/${id}`} className="bg-white rounded-xl border border-gray-200 border-l-4 border-l-red-500 p-5 text-center hover:shadow-md transition-all">
+          <Link to={`/flagged-patients/${id}`} className="bg-white rounded-xl border border-gray-200 p-5 text-center hover:shadow-md transition-all">
             <span className="text-3xl font-extrabold text-red-600">{flaggedCount}</span>
             <p className="text-xs text-gray-500 mt-1">Flagged Clients</p>
           </Link>

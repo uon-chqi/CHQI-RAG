@@ -74,7 +74,6 @@ export default function FlaggedPatients() {
             &#8592; Back
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 mt-2">Flagged Clients</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Clients whose messages contain concerning mental health indicators</p>
         </div>
       </div>
 
