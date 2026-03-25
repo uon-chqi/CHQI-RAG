@@ -115,6 +115,19 @@ router.post('/message', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Message and patient_id are required' });
     }
 
+    // Special case: admin test chat (no DB lookup, no storage)
+    if (patient_id === 'test-patient') {
+      const ragResult = await processQuery(message, '0700000000', 'sms');
+      return res.json({
+        success: true,
+        data: {
+          response: ragResult.response,
+          citations: ragResult.citations,
+          conversationId: null,
+        },
+      });
+    }
+
     // Fetch patient details for phone & facility
     const patientRes = await db.query(
       'SELECT id, phone, facility_id FROM patients WHERE id = $1', [patient_id]
@@ -170,6 +183,11 @@ router.post('/message', async (req, res) => {
 router.get('/history/:patientId', async (req, res) => {
   try {
     const { patientId } = req.params;
+
+    // Special case: admin test chat (no DB lookup, no history)
+    if (patientId === 'test-patient') {
+      return res.json({ success: true, data: [] });
+    }
 
     // Get patient phone to look up conversations
     const patientRes = await db.query('SELECT phone FROM patients WHERE id = $1', [patientId]);

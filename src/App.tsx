@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import UserManagement from './pages/UserManagement';
 import FacilityDetail from './pages/FacilityDetail';
 import Chatbot from './pages/Chatbot';
+import ClientChat from './pages/ClientChat';
 import FlaggedPatients from './pages/FlaggedPatients';
 
 export default function App() {
@@ -25,6 +26,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/chatbot" element={<Chatbot />} />
+          {/* Client-only chat, no navigation */}
+          <Route path="/client/chat" element={<ClientChat />} />
           <Route
             path="/"
             element={
