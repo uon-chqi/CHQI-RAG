@@ -13,13 +13,18 @@ router.get('/session/:clientid', async (req, res) => {
   try {
     const { clientid } = req.params;
     if (!clientid) return res.status(400).json({ success: false, error: 'Missing clientid' });
-    const result = await db.query(`
-      SELECT id AS patient_id, first_name, last_name, phone, ccc_number, f.name AS facility_name
-      FROM patients p
-      LEFT JOIN facilities f ON p.facility_id = f.id
-      WHERE p.id = $1
-    `, [clientid]);
-    if (result.rows.length === 0) {
+    let result;
+    try {
+      result = await db.query(`
+        SELECT id AS patient_id, first_name, last_name, phone, ccc_number, f.name AS facility_name
+        FROM patients p
+        LEFT JOIN facilities f ON p.facility_id = f.id
+        WHERE p.id = $1
+      `, [clientid]);
+    } catch (err) {
+      return res.status(500).json({ success: false, error: 'Database error' });
+    }
+    if (!result || result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
     res.json({ success: true, data: result.rows[0] });

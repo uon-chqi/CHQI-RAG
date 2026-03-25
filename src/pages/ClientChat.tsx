@@ -22,6 +22,7 @@ interface PatientSession {
   facility_name: string;
 }
 
+export default function ClientChat() {
   const { clientid } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<PatientSession | null>(null);
