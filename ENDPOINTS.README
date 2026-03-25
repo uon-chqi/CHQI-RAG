@@ -1,0 +1,130 @@
+# API Endpoints Reference
+
+This document lists **all API endpoints** for the CHQI-RAG backend, hosted at: https://chqi-rag.onrender.com
+
+---
+
+## Authentication
+
+### POST `/api/auth/login`
+- **Body:** `{ email, password }` or `{ username, password }`
+- **Description:** Login for all user types. Returns JWT token and user info.
+
+### GET `/api/auth/me`
+- **Headers:** `Authorization: Bearer <token>`
+- **Description:** Get current user profile (requires authentication).
+
+---
+
+## Chatbot
+
+### GET `/api/chatbot/session/:clientid`
+- **Params:** `clientid` (patient UUID)
+- **Description:** Fetch patient session info by patient id.
+
+### POST `/api/chatbot/login`
+- **Body:** `{ phone, ccc_number }`
+- **Description:** Login for client chat (returns patient session info).
+
+### POST `/api/chatbot/message`
+- **Body:** `{ message, patient_id }`
+- **Description:** Send a message as a patient (client chat).
+
+### GET `/api/chatbot/history/:patientId`
+- **Params:** `patientId` (UUID)
+- **Description:** Get chat history for a patient.
+
+---
+
+## Patients
+
+### GET `/api/patients`
+- **Query:** `facility_id`, `risk_level`, `search`, `page`, `limit`
+- **Description:** List patients with filtering and pagination.
+
+### GET `/api/patients/facilities`
+- **Description:** List all facilities.
+
+### GET `/api/patients/stats`
+- **Description:** Get patient statistics.
+
+### GET `/api/patients/:patientId`
+- **Params:** `patientId` (UUID)
+- **Description:** Get patient details.
+
+### GET `/api/patients/search/ccc/:cccNumber`
+- **Params:** `cccNumber`
+- **Description:** Search for a patient by CCC number.
+
+### GET `/api/patients/facility/:facilityId/list`
+- **Params:** `facilityId`
+- **Description:** List patients in a specific facility.
+
+### POST `/api/patients/facility/:facilityId/create`
+- **Body:** Patient data
+- **Description:** Create new patient in facility.
+
+### PUT `/api/patients/:patientId`
+- **Body:** Patient data
+- **Description:** Update patient information.
+
+### POST `/api/patients/:patientId/ccc`
+- **Body:** `{ cccNumber, enrollmentDate, facilityId }`
+- **Description:** Add CCC number to patient.
+
+### GET `/api/patients/facility/:facilityId/report`
+- **Query:** `startDate`, `endDate`
+- **Description:** Get patient report for date range.
+
+---
+
+## RAG (Retrieval-Augmented Generation)
+
+### POST `/api/rag/query`
+- **Body:** `{ message, phone, channel }`
+- **Description:** Query the RAG system (for SMS/WhatsApp/other channels).
+
+---
+
+## Conversations
+
+### GET `/api/conversations`
+- **Query:** `page`, `limit`, `phone`, `channel`, `startDate`, `endDate`
+- **Description:** List conversations with filtering and pagination.
+
+### GET `/api/conversations/:id`
+- **Params:** `id`
+- **Description:** Get a single conversation by ID.
+
+### GET `/api/conversations/phone/:phoneNumber`
+- **Params:** `phoneNumber`
+- **Description:** Get conversations by phone number.
+
+---
+
+## Health
+
+### GET `/api/health`
+- **Description:** Health check endpoint.
+
+---
+
+## Other Notable Endpoints
+
+- **Documents:** `/api/documents` (GET, POST for upload, etc.)
+- **Analytics:** `/api/analytics/dashboard-stats`, `/api/analytics/daily`, etc.
+- **Facilities:** `/api/facilities` (GET, POST, etc.)
+- **Admin:** `/api/admin/dashboard`, `/api/admin/users-list`, etc.
+- **Webhooks:** `/api/webhooks/sms/receive`, `/api/webhooks/whatsapp/receive` (POST)
+- **Flagged:** `/api/flagged` (GET, POST, etc.)
+
+---
+
+**Notes:**
+- All endpoints are prefixed with `/api/`.
+- Most endpoints require authentication via JWT in the `Authorization` header.
+- Use the correct HTTP method (`GET`, `POST`, etc.) as shown.
+- For POST/PUT, send data as JSON in the request body.
+- For GET, use query parameters or URL params as needed.
+
+For more details on each endpoint, see the corresponding route file in `server/routes/`.
