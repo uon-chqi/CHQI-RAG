@@ -28,6 +28,7 @@ export default function App() {
           <Route path="/chatbot" element={<Chatbot />} />
           {/* Client-only chat, no navigation */}
           <Route path="/client/chat" element={<ClientChat />} />
+          <Route path="/client/chat/:clientid" element={<ClientChat />} />
           <Route
             path="/"
             element={

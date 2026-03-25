@@ -21,10 +21,8 @@ interface PatientSession {
 }
 
 export default function Chatbot() {
-  const [session, setSession] = useState<PatientSession | null>(() => {
-    const saved = localStorage.getItem('chatbot_session');
-    return saved ? JSON.parse(saved) : null;
-  });
+  // For admin: always start with no session (never load from localStorage)
+  const [session, setSession] = useState<PatientSession | null>(null);
 
   // ── LOGIN STATE ──
   const [phone, setPhone] = useState('');
@@ -78,7 +76,7 @@ export default function Chatbot() {
   const handleLogout = () => {
     setSession(null);
     setMessages([]);
-    localStorage.removeItem('chatbot_session');
+    // No localStorage for admin
   };
 
   // ── LOAD HISTORY ──
@@ -135,7 +133,7 @@ export default function Chatbot() {
   const formatTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   // ── LOGIN SCREEN ──
-  // For admin: skip login, show a test chat interface or session selector
+  // For admin: always show a clean test chat interface (no session mixing)
   if (!session) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
@@ -144,7 +142,7 @@ export default function Chatbot() {
             <Bot className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-navy-900 mb-2">CHQI Health Assistant (Admin Test)</h1>
-          <p className="text-sm text-gray-500 mb-4">This is a test chat interface for admin. No login required.</p>
+          <p className="text-sm text-gray-500 mb-4">This is a test chat interface for admin. No login required. No client sessions will ever appear here.</p>
           <button
             className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5 rounded-lg transition-colors"
             onClick={() => setSession({

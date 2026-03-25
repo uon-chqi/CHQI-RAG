@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Send, Bot, Loader2, LogOut } from 'lucide-react';
 
 // This is a stripped-down version of Chatbot for client-only access (no navigation)
@@ -21,11 +22,9 @@ interface PatientSession {
   facility_name: string;
 }
 
-export default function ClientChat() {
-  const [session, setSession] = useState<PatientSession | null>(() => {
-    const saved = localStorage.getItem('chatbot_session');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const { clientid } = useParams();
+  const navigate = useNavigate();
+  const [session, setSession] = useState<PatientSession | null>(null);
 
   // ── LOGIN STATE ──
   const [phone, setPhone] = useState('');
@@ -46,9 +45,17 @@ export default function ClientChat() {
 
   // Load conversation history when session exists
   useEffect(() => {
-    if (session) loadHistory();
+    if (clientid) {
+      // Fetch session info from backend using clientid
+      fetch(`${API_BASE}/api/chatbot/session/${clientid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data) setSession(data.data);
+          else setSession(null);
+        });
+    }
     // eslint-disable-next-line
-  }, [session?.patient_id]);
+  }, [clientid]);
 
   // ── LOGIN ──
   const handleLogin = async (e: React.FormEvent) => {
@@ -67,9 +74,8 @@ export default function ClientChat() {
         setLoginError(data.error || 'Login failed');
         return;
       }
-      const sess: PatientSession = data.data;
-      setSession(sess);
-      localStorage.setItem('chatbot_session', JSON.stringify(sess));
+      // Redirect to /client/chat/:clientid
+      navigate(`/client/chat/${data.data.patient_id}`);
     } catch {
       setLoginError('Network error. Please try again.');
     } finally {
@@ -80,7 +86,7 @@ export default function ClientChat() {
   const handleLogout = () => {
     setSession(null);
     setMessages([]);
-    localStorage.removeItem('chatbot_session');
+    navigate('/client/chat');
   };
 
   // ── LOAD HISTORY ──
@@ -137,7 +143,7 @@ export default function ClientChat() {
   const formatTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   // ── LOGIN SCREEN ──
-  if (!session) {
+  if (!clientid || !session) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
@@ -195,6 +201,7 @@ export default function ClientChat() {
   }
 
   // ── CHAT SCREEN ──
+  if (!session) return null;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Chat header */}
