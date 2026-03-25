@@ -1,3 +1,10 @@
+
+import express from 'express';
+import db from '../config/database.js';
+import { processQuery } from '../services/rag.js';
+
+const router = express.Router();
+
 /**
  * GET /api/chatbot/session/:clientid
  * Fetch patient session info by patient id (for client chat isolation)
@@ -21,11 +28,6 @@ router.get('/session/:clientid', async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to fetch session' });
   }
 });
-import express from 'express';
-import db from '../config/database.js';
-import { processQuery } from '../services/rag.js';
-
-const router = express.Router();
 
 // ── Mental health flagging keywords (categorised by severity) ──
 const FLAG_KEYWORDS = {
