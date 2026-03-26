@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import type {
   SmsTemplate,
   SmsTemplateApi,
@@ -254,8 +254,13 @@ export const smsApi = axios.create({
 });
 
 const SMS_TOKEN_STORAGE_KEY = 'chqi_sms_token';
-// In development, keep auto-login enabled by default unless explicitly set to false.
-const SMS_AUTO_LOGIN = import.meta.env.DEV && import.meta.env.VITE_SMS_AUTO_LOGIN !== 'false';
+
+function isEnvFlagEnabled(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+}
+
+// Auto-login is controlled purely by env so production can opt in when required.
+const SMS_AUTO_LOGIN = isEnvFlagEnabled(import.meta.env.VITE_SMS_AUTO_LOGIN);
 const SMS_LOGIN_EMAIL = import.meta.env.VITE_SMS_LOGIN_EMAIL || 'ngigid0@gmail.com';
 const SMS_LOGIN_PASSWORD = import.meta.env.VITE_SMS_LOGIN_PASSWORD || '123456';
 
@@ -342,8 +347,8 @@ function extractTemplateList(payload: unknown): SmsTemplate[] {
 }
 
 function extractSingleTemplate(payload: unknown): SmsTemplate {
-  const source = payload as SmsTemplateApi | { data?: SmsTemplateApi };
-  const template = source?.data ?? source;
+  const source = payload as { data?: SmsTemplateApi };
+  const template = source.data ?? (payload as SmsTemplateApi);
   return mapTemplateFromApi(template as SmsTemplateApi);
 }
 
@@ -390,7 +395,7 @@ smsApi.interceptors.request.use(async (config) => {
   }
 
   if (!config.headers) {
-    config.headers = {};
+    config.headers = AxiosHeaders.from({}) as typeof config.headers;
   }
 
   if (config.headers.Authorization) {
