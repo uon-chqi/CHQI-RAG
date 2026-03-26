@@ -79,7 +79,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New Clients', value: stats.newPatients30d },
-    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500' },
+    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, },
   ];
   const countyCards = [
     { label: 'Facilities', value: stats.totalFacilities ?? 0 },
@@ -89,7 +89,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New (30d)', value: stats.newPatients30d },
-    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, accent: 'border-l-4 border-l-red-500' },
+    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, },
   ];
   const cards = isAdmin ? adminCards : countyCards;
 

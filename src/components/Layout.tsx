@@ -34,6 +34,7 @@ const smsModuleGroup: NavGroupItem = {
 const superAdminNav: NavItem[] = [
   { path: '/', label: 'Home' },
   { path: '/conversations', label: 'Conversations' },
+  { path: '/chat', label: 'Chat' },
   { path: '/live', label: 'Live Messages' },
   { path: '/documents', label: 'Document Library' },
   { path: '/sms-configuration', label: 'SMS Config' },
@@ -45,6 +46,7 @@ const superAdminNav: NavItem[] = [
 const nationalNav: NavItem[] = [
   { path: '/', label: 'Home' },
   { path: '/conversations', label: 'Conversations' },
+  { path: '/chat', label: 'Chat' },
   { path: '/live', label: 'Live Messages' },
   smsModuleGroup,
   { path: '/organisations', label: 'Facilities' },

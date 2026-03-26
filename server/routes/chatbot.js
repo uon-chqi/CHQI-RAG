@@ -1,8 +1,38 @@
+
 import express from 'express';
 import db from '../config/database.js';
 import { processQuery } from '../services/rag.js';
 
 const router = express.Router();
+
+/**
+ * GET /api/chatbot/session/:clientid
+ * Fetch patient session info by patient id (for client chat isolation)
+ */
+router.get('/session/:clientid', async (req, res) => {
+  try {
+    const { clientid } = req.params;
+    if (!clientid) return res.status(400).json({ success: false, error: 'Missing clientid' });
+    let result;
+    try {
+      result = await db.query(`
+  SELECT p.id AS patient_id, p.first_name, p.last_name, p.phone, p.ccc_number, f.name AS facility_name
+  FROM patients p
+  LEFT JOIN facilities f ON p.facility_id = f.id
+  WHERE p.id = $1
+`, [clientid]);
+    } catch (err) {
+      return res.status(500).json({ success: false, error: 'Database error' });
+    }
+    if (!result || result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Patient not found' });
+    }
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Session fetch error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch session' });
+  }
+});
 
 // ── Mental health flagging keywords (categorised by severity) ──
 const FLAG_KEYWORDS = {
@@ -115,6 +145,19 @@ router.post('/message', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Message and patient_id are required' });
     }
 
+    // Special case: admin test chat (no DB lookup, no storage)
+    if (patient_id === 'test-patient') {
+      const ragResult = await processQuery(message, '0700000000', 'sms');
+      return res.json({
+        success: true,
+        data: {
+          response: ragResult.response,
+          citations: ragResult.citations,
+          conversationId: null,
+        },
+      });
+    }
+
     // Fetch patient details for phone & facility
     const patientRes = await db.query(
       'SELECT id, phone, facility_id FROM patients WHERE id = $1', [patient_id]
@@ -170,6 +213,11 @@ router.post('/message', async (req, res) => {
 router.get('/history/:patientId', async (req, res) => {
   try {
     const { patientId } = req.params;
+
+    // Special case: admin test chat (no DB lookup, no history)
+    if (patientId === 'test-patient') {
+      return res.json({ success: true, data: [] });
+    }
 
     // Get patient phone to look up conversations
     const patientRes = await db.query('SELECT phone FROM patients WHERE id = $1', [patientId]);

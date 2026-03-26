@@ -17,6 +17,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import UserManagement from './pages/UserManagement';
 import FacilityDetail from './pages/FacilityDetail';
 import Chatbot from './pages/Chatbot';
+import ClientChat from './pages/ClientChat';
 import FlaggedPatients from './pages/FlaggedPatients';
 import SmsTemplates from './pages/smsmodule/SmsTemplates';
 import WorkflowsList from './pages/smsmodule/WorkflowsList';
@@ -31,6 +32,9 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/chatbot" element={<Chatbot />} />
+          {/* Client-only chat, no navigation */}
+          <Route path="/client/chat" element={<ClientChat />} />
+          <Route path="/client/chat/:clientid" element={<ClientChat />} />
           <Route
             path="/"
             element={
@@ -40,7 +44,7 @@ export default function App() {
             }
           >
             <Route index element={<Dashboard />} />
-            <Route path="chat" element={<Chat />} />
+            <Route path="chat" element={<Chatbot />} />
             <Route path="live" element={<LiveMessages />} />
             <Route path="conversations" element={<Conversations />} />
             <Route path="documents" element={<Documents />} />

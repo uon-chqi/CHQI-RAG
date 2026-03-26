@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Send, Bot, Loader2, LogOut } from 'lucide-react';
 
+// This is a stripped-down version of Chatbot for client-only access (no navigation)
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 interface Message {
@@ -20,8 +22,9 @@ interface PatientSession {
   facility_name: string;
 }
 
-export default function Chatbot() {
-  // For admin: always start with no session (never load from localStorage)
+export default function ClientChat() {
+  const { clientid } = useParams();
+  const navigate = useNavigate();
   const [session, setSession] = useState<PatientSession | null>(null);
 
   // ── LOGIN STATE ──
@@ -37,13 +40,23 @@ export default function Chatbot() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
+  // Scroll to bottom on new message
   const scrollToBottom = () => endRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(scrollToBottom, [messages]);
 
   // Load conversation history when session exists
   useEffect(() => {
-    if (session) loadHistory();
-  }, [session?.patient_id]);
+    if (clientid) {
+      // Fetch session info from backend using clientid
+      fetch(`${API_BASE}/api/chatbot/session/${clientid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data) setSession(data.data);
+          else setSession(null);
+        });
+    }
+    // eslint-disable-next-line
+  }, [clientid]);
 
   // ── LOGIN ──
   const handleLogin = async (e: React.FormEvent) => {
@@ -51,7 +64,6 @@ export default function Chatbot() {
     if (!phone.trim() || !ccc.trim()) return;
     setLoggingIn(true);
     setLoginError('');
-
     try {
       const res = await fetch(`${API_BASE}/api/chatbot/login`, {
         method: 'POST',
@@ -63,9 +75,8 @@ export default function Chatbot() {
         setLoginError(data.error || 'Login failed');
         return;
       }
-      const sess: PatientSession = data.data;
-      setSession(sess);
-      localStorage.setItem('chatbot_session', JSON.stringify(sess));
+      // Redirect to /client/chat/:clientid
+      navigate(`/client/chat/${data.data.patient_id}`);
     } catch {
       setLoginError('Network error. Please try again.');
     } finally {
@@ -76,7 +87,7 @@ export default function Chatbot() {
   const handleLogout = () => {
     setSession(null);
     setMessages([]);
-    // No localStorage for admin
+    navigate('/client/chat');
   };
 
   // ── LOAD HISTORY ──
@@ -133,35 +144,65 @@ export default function Chatbot() {
   const formatTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   // ── LOGIN SCREEN ──
-  // For admin: always show a clean test chat interface (no session mixing)
-  if (!session) {
+  if (!clientid || !session) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-700 mb-4">
-            <Bot className="w-8 h-8 text-white" />
+        <div className="w-full max-w-md">
+          {/* Logo / brand */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-700 mb-4">
+              <Bot className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-navy-900">CHQI Health Assistant</h1>
+            <p className="text-sm text-gray-500 mt-1">Chat with our AI health assistant</p>
           </div>
-          <h1 className="text-2xl font-bold text-navy-900 mb-2">CHQI Health Assistant (Admin Test)</h1>
-          <p className="text-sm text-gray-500 mb-4">This is a test chat interface for admin. No login required. No client sessions will ever appear here.</p>
-          <button
-            className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5 rounded-lg transition-colors"
-            onClick={() => setSession({
-              patient_id: 'test-patient',
-              first_name: 'Test',
-              last_name: 'Patient',
-              phone: '0700000000',
-              ccc_number: 'CCC-TEST-001',
-              facility_name: 'Test Facility',
-            })}
-          >
-            Start Test Chat
-          </button>
+
+          <form onSubmit={handleLogin} className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Log in to chat</h2>
+            <p className="text-xs text-gray-500">Enter the phone number and CCC number provided by your facility.</p>
+
+            {loginError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg">{loginError}</div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. 0712345678 or +254712345678"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">CCC Number</label>
+              <input
+                type="text"
+                value={ccc}
+                onChange={(e) => setCcc(e.target.value)}
+                placeholder="e.g. CCC-NBI-001"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loggingIn}
+              className="w-full bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors"
+            >
+              {loggingIn ? 'Verifying…' : 'Start Chatting'}
+            </button>
+          </form>
         </div>
       </div>
     );
   }
 
   // ── CHAT SCREEN ──
+  if (!session) return null;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Chat header */}

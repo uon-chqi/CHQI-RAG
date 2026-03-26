@@ -15,6 +15,14 @@ interface TimingEntry {
 
 const riskLevels: RiskLevel[] = ['HIGH', 'MEDIUM', 'LOW'];
 
+// Default chat invitation message (one-way)
+const DEFAULT_CHAT_MESSAGE = {
+  days_before_appointment: 0,
+  message_text: 'If you would like to talk to us about your health, chat here: https://your-chat-url',
+  is_two_way: false,
+  enabled: true,
+};
+
 export default function SMSConfiguration() {
   const { token } = useAuth();
   const [facilityId, setFacilityId] = useState('');
@@ -74,15 +82,18 @@ export default function SMSConfiguration() {
         { days_before_appointment: 7,  message_text: '', is_two_way: false, enabled: true },
         { days_before_appointment: 3,  message_text: '', is_two_way: false, enabled: true },
         { days_before_appointment: 1,  message_text: '', is_two_way: true,  enabled: true },
+        DEFAULT_CHAT_MESSAGE,
       ],
       MEDIUM: [
         { days_before_appointment: 7,  message_text: '', is_two_way: false, enabled: true },
         { days_before_appointment: 3,  message_text: '', is_two_way: false, enabled: true },
         { days_before_appointment: 1,  message_text: '', is_two_way: true,  enabled: true },
+        DEFAULT_CHAT_MESSAGE,
       ],
       LOW: [
         { days_before_appointment: 3,  message_text: '', is_two_way: false, enabled: true },
         { days_before_appointment: 1,  message_text: '', is_two_way: true,  enabled: true },
+        DEFAULT_CHAT_MESSAGE,
       ],
     };
     setLocalEdits(existing.length > 0 ? existing.map(c => ({ ...c })) : defaults[risk]);
@@ -158,6 +169,18 @@ export default function SMSConfiguration() {
 
             return (
               <div key={risk} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                {/* Send Default Chat Message Button */}
+                <div className="flex justify-end px-5 pt-3">
+                  <button
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
+                    onClick={() => {
+                      setEditingRisk(risk);
+                      setLocalEdits([DEFAULT_CHAT_MESSAGE]);
+                    }}
+                  >
+                    Send Default Chat Message
+                  </button>
+                </div>
                 {/* Card header */}
                 <div className="flex items-center justify-between px-5 py-4">
                   <h3 className="text-base font-semibold text-gray-900">
