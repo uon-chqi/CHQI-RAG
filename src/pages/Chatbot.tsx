@@ -139,10 +139,8 @@ export default function Chatbot() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-700 mb-4">
-            <Bot className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-navy-900 mb-2">CHQI Health Assistant (Admin Test)</h1>
-          <p className="text-sm text-gray-500 mb-4">This is a test chat interface for admin. No login required. No client sessions will ever appear here.</p>
+          <h1 className="text-2xl font-bold text-navy-900 mb-2">Health Assistant</h1>
           <button
             className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5 rounded-lg transition-colors"
             onClick={() => setSession({
@@ -154,7 +152,7 @@ export default function Chatbot() {
               facility_name: 'Test Facility',
             })}
           >
-            Start Test Chat
+            Test Chat
           </button>
         </div>
       </div>
@@ -168,10 +166,9 @@ export default function Chatbot() {
       <header className="sticky top-0 z-10 bg-blue-700 text-white px-4 py-3 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
-            <Bot className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold">CHQI Health Assistant</h2>
+            <h2 className="text-sm font-semibold">Health Assistant</h2>
             <p className="text-[11px] text-blue-200">
               {session.first_name} {session.last_name} &middot; {session.facility_name}
             </p>

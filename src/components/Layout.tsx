@@ -47,7 +47,7 @@ export default function Layout() {
             {/* Brand */}
             <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
               <span className="text-white font-bold text-lg tracking-tight group-hover:text-blue-200 transition-colors">
-                CHQI
+                SMS-PORTAL
               </span>
             </Link>
 
@@ -128,9 +128,9 @@ export default function Layout() {
         <div className="flex items-center justify-between px-5 h-16 border-b border-white/10 flex-shrink-0">
           <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-cyan-300 flex items-center justify-center text-navy-900 font-black text-sm shadow-md">
-              C
+              SMS-PORTAL
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">CHQI</span>
+            <span className="text-white font-bold text-lg tracking-tight">SMS-PORTAL</span>
           </Link>
           <button
             onClick={() => setMobileOpen(false)}
