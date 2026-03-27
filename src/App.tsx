@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
@@ -18,10 +19,15 @@ import FacilityDetail from './pages/FacilityDetail';
 import Chatbot from './pages/Chatbot';
 import ClientChat from './pages/ClientChat';
 import FlaggedPatients from './pages/FlaggedPatients';
+import SmsTemplates from './pages/smsmodule/SmsTemplates';
+import WorkflowsList from './pages/smsmodule/WorkflowsList';
+import WorkflowBuilder from './pages/smsmodule/WorkflowBuilder';
+import WorkflowSimulation from './pages/smsmodule/WorkflowSimulation';
 
 export default function App() {
   return (
     <AuthProvider>
+      <Toaster position="top-right" richColors closeButton />
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -52,6 +58,40 @@ export default function App() {
             <Route path="flagged-patients/:facilityId" element={<FlaggedPatients />} />
             <Route path="admin/hierarchy" element={<AdminDashboard />} />
             <Route path="admin/users" element={<UserManagement />} />
+
+            {/* ── SMS Workflow Engine ─────────────────────────────── */}
+            <Route
+              path="admin/sms-templates"
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <SmsTemplates />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/workflows"
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <WorkflowsList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/workflows/builder/:id?"
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <WorkflowBuilder />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/workflow-simulation"
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <WorkflowSimulation />
+                </ProtectedRoute>
+              }
+            />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
