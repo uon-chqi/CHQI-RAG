@@ -138,24 +138,35 @@ router.post('/login', async (req, res) => {
  * Send a message to the RAG chatbot. Flags harmful content silently.
  */
 router.post('/message', async (req, res) => {
+
   try {
     const { message, patient_id } = req.body;
+    console.log('Received patient_id:', patient_id);
 
     if (!message || !patient_id) {
       return res.status(400).json({ success: false, error: 'Message and patient_id are required' });
     }
 
-    // Special case: admin test chat (no DB lookup, no storage)
-    if (patient_id === 'test-patient') {
-      const ragResult = await processQuery(message, '0700000000', 'sms');
-      return res.json({
-        success: true,
-        data: {
-          response: ragResult.response,
-          citations: ragResult.citations,
-          conversationId: null,
-        },
-      });
+    // Special case: admin or test chat (no DB lookup, no storage)
+    const isTestOrAdmin = (
+      typeof patient_id === 'string' &&
+      (patient_id === 'test-patient' || patient_id.startsWith('admin-'))
+    );
+    if (isTestOrAdmin) {
+      try {
+        const ragResult = await processQuery(message, '0700000000', 'sms');
+        return res.json({
+          success: true,
+          data: {
+            response: ragResult.response,
+            citations: ragResult.citations,
+            conversationId: null,
+          },
+        });
+      } catch (err) {
+        console.error('Error in admin/test-patient RAG pipeline:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Failed to process admin/test message' });
+      }
     }
 
     // Fetch patient details for phone & facility
@@ -202,7 +213,7 @@ router.post('/message', async (req, res) => {
     });
   } catch (error) {
     console.error('Chatbot message error:', error);
-    res.status(500).json({ success: false, error: 'Failed to process message' });
+    res.status(500).json({ success: false, error: error.message || 'Failed to process message' });
   }
 });
 
