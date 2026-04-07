@@ -42,20 +42,37 @@ export default function SMSConfiguration() {
   // Load facilities and auto-select first
   useEffect(() => {
     fetch(`${API_BASE}/api/admin/overview`, { headers: authHeaders() })
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) {
+          const errorText = await r.text();
+          throw new Error(`API error: ${r.status} - ${errorText}`);
+        }
+        return r.json();
+      })
       .then(json => {
         if (json?.success) {
           const facs = json.data.facilities || [];
           if (facs.length > 0) setFacilityId(facs[0].id);
         }
       })
+      .catch(err => {
+        console.error('Failed to load facilities:', err);
+        // Optionally set an error state here for UI feedback
+      });
   }, [authHeaders]);
 
   const loadConfigs = useCallback(async () => {
     if (!facilityId) return;
     setLoading(true);
     try {
-      const cfgRes = await fetch(`${API_BASE}/api/sms-admin/configurations?facility_id=${facilityId}`, { headers: authHeaders() }).then(r => r.json());
+      const cfgRes = await fetch(`${API_BASE}/api/sms-admin/configurations?facility_id=${facilityId}`, { headers: authHeaders() })
+        .then(async r => {
+          if (!r.ok) {
+            const errorText = await r.text();
+            throw new Error(`API error: ${r.status} - ${errorText}`);
+          }
+          return r.json();
+        });
       const grouped: Record<RiskLevel, TimingEntry[]> = { HIGH: [], MEDIUM: [], LOW: [] };
       if (cfgRes.success) {
         for (const row of cfgRes.data) {
@@ -68,6 +85,9 @@ export default function SMSConfiguration() {
         }
       }
       setConfigs(grouped);
+    } catch (err) {
+      console.error('Failed to load configs:', err);
+      // Optionally set an error state here for UI feedback
     } finally { setLoading(false); }
   }, [facilityId, authHeaders]);
 
