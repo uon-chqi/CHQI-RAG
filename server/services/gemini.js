@@ -15,6 +15,17 @@ const cohereClients = cohereKeys.map(key => new CohereClient({ token: key }));
 let currentCohereIndex = 0;
 
 // Use the model from .env or default to gemini-2.5-flash
+
+// Support multiple Gemini API keys for failover
+const GEMINI_KEYS = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_2,
+  process.env.GEMINI_API_KEY_3,
+  process.env.GEMINI_API_KEY_4,
+  process.env.GEMINI_API_KEY_5,
+].filter(Boolean);
+let currentGeminiIndex = 0;
+
 const GEMINI_MODEL = process.env.GEMINI_CHAT_MODEL || 'models/gemini-2.5-flash';
 
 // Initialize local embedding model (will download on first use)
@@ -45,10 +56,8 @@ export const generateEmbedding = async (text) => {
 };
 
 export const generateResponse = async (prompt, context) => {
-  try {
-    const hasContext = context && context.trim().length > 0;
-    
-    const systemPrompt = `You are CHQI Health Assistant — a warm, friendly, and knowledgeable health companion for patients in an HIV care programme in Kenya.
+  const hasContext = context && context.trim().length > 0;
+  const systemPrompt = `You are CHQI Health Assistant — a warm, friendly, and knowledgeable health companion for patients in an HIV care programme in Kenya.
 
 YOUR PERSONALITY:
 - Be conversational, empathetic, and human. Greet patients warmly when they greet you.
@@ -76,78 +85,70 @@ Patient message: ${prompt}
 
 Respond naturally and helpfully:`;
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not set in environment variables');
-    }
-
-    console.log(`📤 Calling Gemini API with model: ${GEMINI_MODEL}`);
-    console.log(`📝 Context length: ${context.length} chars, Prompt length: ${systemPrompt.length} chars`);
-    
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/${GEMINI_MODEL}:generateContent`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: systemPrompt }]
-        }],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 1024,
-          topP: 0.9
+  let lastError;
+  for (let i = 0; i < GEMINI_KEYS.length; i++) {
+    const apiKey = GEMINI_KEYS[(currentGeminiIndex + i) % GEMINI_KEYS.length];
+    try {
+      console.log(`📤 Calling Gemini API with model: ${GEMINI_MODEL} using key #${(currentGeminiIndex + i) % GEMINI_KEYS.length + 1}`);
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/${GEMINI_MODEL}:generateContent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 1024,
+            topP: 0.9
+          }
+        })
+      });
+      console.log(`📥 Response status: ${response.status} ${response.statusText}`);
+      if (!response.ok) {
+        let errorText = await response.text();
+        console.error('❌ Error response:', errorText.substring(0, 500));
+        let errorMessage = `Gemini API error ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error?.message || errorMessage;
+        } catch (e) {}
+        // Only failover on quota/high demand errors
+        if (
+          errorMessage.includes('high demand') ||
+          errorMessage.includes('quota') ||
+          errorMessage.includes('exceeded') ||
+          errorMessage.includes('UNAVAILABLE') ||
+          errorMessage.includes('rate limit')
+        ) {
+          lastError = errorMessage;
+          continue; // Try next key
         }
-      })
-    });
-
-    console.log(`📥 Response status: ${response.status} ${response.statusText}`);
-    
-    if (!response.ok) {
-      let errorText = await response.text();
-      console.error('❌ Error response:', errorText.substring(0, 500));
-      
-      let errorMessage = `Gemini API error ${response.status}: ${response.statusText}`;
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error?.message || errorMessage;
-      } catch (e) {
-        // If can't parse JSON, use text as is
+        throw new Error(errorMessage);
       }
-      throw new Error(errorMessage);
+      const responseText = await response.text();
+      if (!responseText || responseText.trim() === '') {
+        throw new Error('Empty response from Gemini API');
+      }
+      const data = JSON.parse(responseText);
+      if (!data.candidates || !Array.isArray(data.candidates) || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
+        console.error('❌ Unexpected response structure:', JSON.stringify(data, null, 2).substring(0, 500));
+        throw new Error('Invalid response structure from Gemini API');
+      }
+      // Success: update currentGeminiIndex for round-robin
+      currentGeminiIndex = (currentGeminiIndex + i) % GEMINI_KEYS.length;
+      const result = data.candidates[0].content.parts[0].text;
+      console.log(`✅ Generated response (${result.length} chars): ${result.substring(0, 100)}...`);
+      return result;
+    } catch (error) {
+      lastError = error.message;
+      console.error(`❌ Gemini key #${(currentGeminiIndex + i) % GEMINI_KEYS.length + 1} failed:`, error.message);
+      // Try next key
     }
-
-    const responseText = await response.text();
-    
-    // Check if response is empty
-    if (!responseText || responseText.trim() === '') {
-      throw new Error('Empty response from Gemini API');
-    }
-
-    // Parse JSON
-    const data = JSON.parse(responseText);
-    
-    // Validate response structure
-    if (!data.candidates || 
-        !Array.isArray(data.candidates) || 
-        data.candidates.length === 0 ||
-        !data.candidates[0].content ||
-        !data.candidates[0].content.parts ||
-        data.candidates[0].content.parts.length === 0) {
-      console.error('❌ Unexpected response structure:', JSON.stringify(data, null, 2).substring(0, 500));
-      throw new Error('Invalid response structure from Gemini API');
-    }
-
-    const result = data.candidates[0].content.parts[0].text;
-    console.log(`✅ Generated response (${result.length} chars): ${result.substring(0, 100)}...`);
-    
-    return result;
-  } catch (error) {
-    console.error('❌ Error in generateResponse:', error.message);
-    throw error;
   }
+  // All keys failed
+  throw new Error(`All Gemini API keys failed. Last error: ${lastError}`);
 };
 
 export const checkHealth = async () => {
