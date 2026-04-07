@@ -1,9 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, Bot, Loader2, LogOut } from 'lucide-react';
-
-// This is a stripped-down version of Chatbot for client-only access (no navigation)
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { Send, Bot, LogOut } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -21,6 +18,8 @@ interface PatientSession {
   ccc_number: string;
   facility_name: string;
 }
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://chqi-rag.onrender.com';
 
 export default function ClientChat() {
   const { clientid } = useParams();
@@ -44,16 +43,20 @@ export default function ClientChat() {
   const scrollToBottom = () => endRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(scrollToBottom, [messages]);
 
-  // Load conversation history when session exists
+  // Load session info when clientid changes
   useEffect(() => {
     if (clientid) {
-      // Fetch session info from backend using clientid
       fetch(`${API_BASE}/api/chatbot/session/${clientid}`)
         .then(res => res.json())
         .then(data => {
-          if (data.success && data.data) setSession(data.data);
-          else setSession(null);
-        });
+          if (data.success && data.data) {
+            setSession(data.data);
+            loadHistory();
+          } else {
+            setSession(null);
+          }
+        })
+        .catch(() => setSession(null));
     }
     // eslint-disable-next-line
   }, [clientid]);
@@ -75,7 +78,6 @@ export default function ClientChat() {
         setLoginError(data.error || 'Login failed');
         return;
       }
-      // Redirect to /client/chat/:clientid
       navigate(`/client/chat/${data.data.patient_id}`);
     } catch {
       setLoginError('Network error. Please try again.');
@@ -100,9 +102,19 @@ export default function ClientChat() {
       if (data.success && data.data) {
         const history: Message[] = [];
         for (const conv of data.data) {
-          history.push({ id: `u-${conv.id}`, text: conv.message, sender: 'user', timestamp: new Date(conv.created_at) });
+          history.push({
+            id: `u-${conv.id}`,
+            text: conv.message,
+            sender: 'user',
+            timestamp: new Date(conv.created_at),
+          });
           if (conv.response) {
-            history.push({ id: `b-${conv.id}`, text: conv.response, sender: 'bot', timestamp: new Date(conv.created_at) });
+            history.push({
+              id: `b-${conv.id}`,
+              text: conv.response,
+              sender: 'bot',
+              timestamp: new Date(conv.created_at),
+            });
           }
         }
         setMessages(history);
@@ -118,8 +130,19 @@ export default function ClientChat() {
   const handleSend = async () => {
     if (!input.trim() || sending || !session) return;
     const text = input.trim();
-    const userMsg: Message = { id: `u-${Date.now()}`, text, sender: 'user', timestamp: new Date() };
-    const loadingMsg: Message = { id: `b-${Date.now()}`, text: '', sender: 'bot', timestamp: new Date(), isLoading: true };
+    const userMsg: Message = {
+      id: `u-${Date.now()}`,
+      text,
+      sender: 'user',
+      timestamp: new Date(),
+    };
+    const loadingMsg: Message = {
+      id: `b-${Date.now()}`,
+      text: '',
+      sender: 'bot',
+      timestamp: new Date(),
+      isLoading: true,
+    };
 
     setMessages((prev) => [...prev, userMsg, loadingMsg]);
     setInput('');
@@ -132,32 +155,54 @@ export default function ClientChat() {
         body: JSON.stringify({ message: text, patient_id: session.patient_id }),
       });
       const data = await res.json();
-      const reply = data.success ? data.data.response : 'Sorry, something went wrong. Please try again.';
-      setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id ? { ...m, text: reply, isLoading: false } : m)));
+      const reply = data.success
+        ? data.data.response
+        : 'Sorry, something went wrong. Please try again.';
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === loadingMsg.id ? { ...m, text: reply, isLoading: false } : m
+        )
+      );
     } catch {
-      setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id ? { ...m, text: 'Network error. Please try again.', isLoading: false } : m)));
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === loadingMsg.id
+            ? { ...m, text: 'Network error. Please try again.', isLoading: false }
+            : m
+        )
+      );
     } finally {
       setSending(false);
     }
   };
 
-  const formatTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (d: Date) =>
+    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   // ── LOGIN SCREEN ──
   if (!clientid || !session) {
     return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <form onSubmit={handleLogin} className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Log in to chat</h2>
-          <p className="text-xs text-gray-500">Enter the phone number and CCC number provided by your facility.</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <form
+            onSubmit={handleLogin}
+            className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 space-y-4"
+          >
+            <h2 className="text-lg font-semibold text-gray-900">Log in to chat</h2>
+            <p className="text-xs text-gray-500">
+              Enter the phone number and CCC number provided by your facility.
+            </p>
 
             {loginError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg">{loginError}</div>
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg">
+                {loginError}
+              </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number
+              </label>
               <input
                 type="tel"
                 value={phone}
@@ -168,7 +213,9 @@ export default function ClientChat() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">CCC Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                CCC Number
+              </label>
               <input
                 type="text"
                 value={ccc}
@@ -193,23 +240,17 @@ export default function ClientChat() {
   }
 
   // ── CHAT SCREEN ──
-  if (!session) return null;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Chat header */}
       <header className="sticky top-0 z-10 bg-blue-700 text-white px-4 py-3 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
-            <Bot className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold">Health Assistant</h2>
-            <p className="text-[11px] text-blue-200">
-              {session.first_name} {session.last_name} &middot; {session.facility_name}
-            </p>
-          </div>
+        <div>
+          <h2 className="text-sm font-semibold">Health Assistant</h2>
         </div>
-        <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-blue-200 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 text-xs text-blue-200 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+        >
           <LogOut className="w-3.5 h-3.5" /> Logout
         </button>
       </header>
@@ -218,32 +259,46 @@ export default function ClientChat() {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {loadingHistory ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-            <Loader2 className="w-6 h-6 animate-spin mb-2" /> Loading conversations…
+            <div className="flex gap-1">
+              <span className="block h-2 w-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+              <span className="block h-2 w-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '150ms' }}></span>
+              <span className="block h-2 w-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+            </div>
+            <p className="text-sm mt-3">Loading conversations…</p>
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center text-gray-400 mt-20">
-            <Bot className="w-10 h-10 mx-auto mb-3 text-blue-400" />
-            <p className="text-sm">Hello {session.first_name}! How can I help you today?</p>
+            <p className="text-sm">Hello! How can I help you today?</p>
             <p className="text-xs mt-1">Ask me anything about your health.</p>
           </div>
         ) : (
           messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div
+              key={msg.id}
+              className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
                   msg.sender === 'user'
-                    ? 'bg-blue-700 text-white rounded-br-md'
-                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
+                    ? 'bg-blue-700 text-white rounded-br-none'
+                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
                 }`}
               >
                 {msg.isLoading ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <Loader2 className="w-4 h-4 animate-spin" /> typing…
+                  <div className="flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1.5 rounded-full w-fit">
+                    <span className="text-sm font-medium">typing</span>
+                    <span className="block h-2 w-2 rounded-full bg-green-600 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                    <span className="block h-2 w-2 rounded-full bg-green-600 animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                    <span className="block h-2 w-2 rounded-full bg-green-600 animate-bounce" style={{ animationDelay: '300ms' }}></span>
                   </div>
                 ) : (
                   <>
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
-                    <p className={`text-[10px] mt-1 ${msg.sender === 'user' ? 'text-blue-200' : 'text-gray-400'}`}>
+                    <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                    <p
+                      className={`text-[10px] mt-1 ${
+                        msg.sender === 'user' ? 'text-blue-200' : 'text-gray-400'
+                      }`}
+                    >
                       {formatTime(msg.timestamp)}
                     </p>
                   </>
@@ -262,7 +317,9 @@ export default function ClientChat() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
+            onKeyDown={(e) =>
+              e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())
+            }
             placeholder="Type a message…"
             className="flex-1 border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             disabled={sending}
