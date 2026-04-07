@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import type {
   SmsTemplate,
   SmsTemplateApi,
@@ -254,8 +254,13 @@ export const smsApi = axios.create({
 });
 
 const SMS_TOKEN_STORAGE_KEY = 'chqi_sms_token';
-// In development, keep auto-login enabled by default unless explicitly set to false.
-const SMS_AUTO_LOGIN = import.meta.env.DEV && import.meta.env.VITE_SMS_AUTO_LOGIN !== 'false';
+
+function isEnvFlagEnabled(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+}
+
+// Auto-login is controlled purely by env so production can opt in when required.
+const SMS_AUTO_LOGIN = isEnvFlagEnabled(import.meta.env.VITE_SMS_AUTO_LOGIN);
 const SMS_LOGIN_EMAIL = import.meta.env.VITE_SMS_LOGIN_EMAIL || 'ngigid0@gmail.com';
 const SMS_LOGIN_PASSWORD = import.meta.env.VITE_SMS_LOGIN_PASSWORD || '123456';
 
@@ -294,6 +299,8 @@ function mapTemplateFromApi(template: SmsTemplateApi): SmsTemplate {
     facilityId: template.facilityId ?? template.facility_id ?? null,
     name: template.name,
     body: template.body,
+    bodySwahili: template.body_swahili ?? null,
+    isBilingual: template.is_bilingual,
     isActive: template.isActive ?? template.is_active ?? true,
     createdAt: template.createdAt ?? template.created_at ?? '',
     updatedAt: template.updatedAt ?? template.updated_at ?? '',
@@ -305,6 +312,12 @@ function mapTemplatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unk
 
   if (typeof data.name === 'string') payload.name = data.name;
   if (typeof data.body === 'string') payload.body = data.body;
+  if ('bodySwahili' in data) {
+    payload.body_swahili = data.bodySwahili && data.bodySwahili.trim() ? data.bodySwahili.trim() : null;
+  }
+  if ('isBilingual' in data && typeof data.isBilingual === 'boolean') {
+    payload.is_bilingual = data.isBilingual;
+  }
 
   if ('facilityId' in data) {
     payload.facility_id = data.facilityId ?? null;
@@ -318,11 +331,28 @@ function mapTemplatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unk
 }
 
 // PATCH /sms-templates/:id only accepts name, body, is_active — facility_id is create-only
-function mapTemplateUpdatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unknown> {
+function mapTemplateUpdatePayloadToApi(
+  data: Partial<SmsTemplate>,
+  original?: Pick<SmsTemplate, 'bodySwahili' | 'isBilingual'>
+): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
 
   if (typeof data.name === 'string') payload.name = data.name;
   if (typeof data.body === 'string') payload.body = data.body;
+
+  if ('bodySwahili' in data) {
+    const nextBodySwahili = typeof data.bodySwahili === 'string' ? data.bodySwahili.trim() : null;
+    const prevBodySwahili =
+      typeof original?.bodySwahili === 'string' ? original.bodySwahili.trim() : (original?.bodySwahili ?? null);
+
+    if (nextBodySwahili !== prevBodySwahili) {
+      payload.body_swahili = nextBodySwahili;
+    }
+  }
+
+  if ('isBilingual' in data && typeof data.isBilingual === 'boolean' && data.isBilingual !== original?.isBilingual) {
+    payload.is_bilingual = data.isBilingual;
+  }
 
   if ('isActive' in data && typeof data.isActive === 'boolean') {
     payload.is_active = data.isActive;
@@ -342,8 +372,8 @@ function extractTemplateList(payload: unknown): SmsTemplate[] {
 }
 
 function extractSingleTemplate(payload: unknown): SmsTemplate {
-  const source = payload as SmsTemplateApi | { data?: SmsTemplateApi };
-  const template = source?.data ?? source;
+  const source = payload as { data?: SmsTemplateApi };
+  const template = source.data ?? (payload as SmsTemplateApi);
   return mapTemplateFromApi(template as SmsTemplateApi);
 }
 
@@ -390,7 +420,7 @@ smsApi.interceptors.request.use(async (config) => {
   }
 
   if (!config.headers) {
-    config.headers = {};
+    config.headers = AxiosHeaders.from({}) as typeof config.headers;
   }
 
   if (config.headers.Authorization) {
@@ -470,9 +500,9 @@ export const smsServices = {
       .post('/sms-templates', mapTemplatePayloadToApi(data))
       .then((r) => extractSingleTemplate(r.data)),
 
-  updateTemplate: (id: string, data: Partial<SmsTemplate>) =>
+  updateTemplate: (id: string, data: Partial<SmsTemplate>, original?: Pick<SmsTemplate, 'bodySwahili' | 'isBilingual'>) =>
     smsApi
-      .patch(`/sms-templates/${id}`, mapTemplateUpdatePayloadToApi(data))
+      .patch(`/sms-templates/${id}`, mapTemplateUpdatePayloadToApi(data, original))
       .then((r) => extractSingleTemplate(r.data)),
 
   deleteTemplate: (id: string) =>
@@ -487,6 +517,9 @@ export const smsServices = {
 
   getSystemModules: () =>
     smsApi.get('/communications/workflows/config/system-modules').then((r) => r.data),
+
+  getWorkflowPatientCategoriesConfig: () =>
+    smsApi.get('/communications/workflows/config/patient-categories').then((r) => r.data),
 
   // --- Workflow CRUD ---
   getWorkflows: (facilityId?: string) =>

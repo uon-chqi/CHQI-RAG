@@ -37,7 +37,7 @@ const superAdminNav: NavItem[] = [
   { path: '/chat', label: 'Chat' },
   { path: '/live', label: 'Live Messages' },
   { path: '/documents', label: 'Document Library' },
-  { path: '/sms-configuration', label: 'SMS Config' },
+  // { path: '/sms-configuration', label: 'SMS Config' },
   smsModuleGroup,
   { path: '/organisations', label: 'Facilities' },
   { path: '/admin/users', label: 'Users' },

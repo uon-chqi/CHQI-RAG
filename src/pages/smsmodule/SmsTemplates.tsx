@@ -111,6 +111,7 @@ export default function SmsTemplates() {
               <tr className="bg-gray-50 border-b text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 <th className="px-5 py-3">Name</th>
                 <th className="px-5 py-3">Scope</th>
+                <th className="px-5 py-3">Language</th>
                 <th className="px-5 py-3">Message Preview</th>
                 <th className="px-5 py-3 text-right">Actions</th>
               </tr>
@@ -130,6 +131,13 @@ export default function SmsTemplates() {
                       <Badge className="flex items-center gap-1 w-max bg-amber-100 text-amber-900 border-amber-300 font-semibold">
                         <Building size={12} /> Facility
                       </Badge>
+                    )}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {template.bodySwahili ? (
+                      <Badge className="w-max bg-blue-100 text-blue-900 border-blue-300 font-semibold">EN + SW</Badge>
+                    ) : (
+                      <Badge className="w-max bg-gray-100 text-gray-700 border-gray-300 font-semibold">EN only</Badge>
                     )}
                   </td>
                   <td className="px-5 py-3.5 text-sm text-gray-500 max-w-xs">
