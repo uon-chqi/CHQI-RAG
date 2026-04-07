@@ -39,6 +39,7 @@ export default function NodeConfigPanel({ selectedNode, availableNodes, onUpdate
   const [showQuickTemplateForm, setShowQuickTemplateForm] = useState(false);
   const [quickTemplateName, setQuickTemplateName] = useState('');
   const [quickTemplateBody, setQuickTemplateBody] = useState('');
+  const [quickTemplateBodySwahili, setQuickTemplateBodySwahili] = useState('');
   const [quickTemplateUniversal, setQuickTemplateUniversal] = useState(false);
   const [quickTemplateError, setQuickTemplateError] = useState<string | null>(null);
 
@@ -129,6 +130,7 @@ export default function NodeConfigPanel({ selectedNode, availableNodes, onUpdate
   const resetQuickTemplateForm = () => {
     setQuickTemplateName('');
     setQuickTemplateBody('');
+    setQuickTemplateBodySwahili('');
     setQuickTemplateUniversal(false);
     setQuickTemplateError(null);
   };
@@ -136,6 +138,7 @@ export default function NodeConfigPanel({ selectedNode, availableNodes, onUpdate
   const handleCreateTemplate = async () => {
     const name = quickTemplateName.trim();
     const body = quickTemplateBody.trim();
+    const bodySwahili = quickTemplateBodySwahili.trim();
 
     if (!name || !body) {
       setQuickTemplateError('Template name and body are required.');
@@ -147,7 +150,13 @@ export default function NodeConfigPanel({ selectedNode, availableNodes, onUpdate
 
     try {
       const facilityId = isSuperAdmin && quickTemplateUniversal ? null : (user?.facility_id ?? null);
-      const created = await smsServices.createTemplate({ name, body, facilityId });
+      const created = await smsServices.createTemplate({
+        name,
+        body,
+        bodySwahili: bodySwahili || null,
+        isBilingual: Boolean(bodySwahili),
+        facilityId,
+      });
 
       setTemplates((prev) => {
         if (prev.some((template) => template.id === created.id)) {
@@ -303,6 +312,19 @@ export default function NodeConfigPanel({ selectedNode, availableNodes, onUpdate
                       onChange={(e) => setQuickTemplateBody(e.target.value)}
                       placeholder="Type your SMS message here..."
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-700">Message Body (Swahili, Optional)</label>
+                    <textarea
+                      className="w-full min-h-[80px] rounded-md border border-gray-300 bg-white p-2 text-sm"
+                      value={quickTemplateBodySwahili}
+                      onChange={(e) => setQuickTemplateBodySwahili(e.target.value)}
+                      placeholder="Optional Swahili translation..."
+                    />
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      If empty, English message will be used for Swahili recipients.
+                    </p>
                   </div>
 
                   {isSuperAdmin && (

@@ -31,6 +31,8 @@ export interface SmsTemplate {
   facilityId: string | null;
   name: string;
   body: string;
+  bodySwahili?: string | null;
+  isBilingual?: boolean;
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -41,6 +43,8 @@ export interface SmsTemplateApi {
   id: string;
   name: string;
   body: string;
+  body_swahili?: string | null;
+  is_bilingual?: boolean;
   facilityId?: string | null;
   facility_id?: string | null;
   isActive?: boolean;
@@ -67,6 +71,8 @@ export interface Workflow {
   name: string;
   triggerEvent: WorkflowTriggerEvent;
   triggerCondition?: Record<string, unknown>;
+  riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  patientCategories?: string[];
   isActive: boolean;
   steps: WorkflowStep[];
   createdAt: string;

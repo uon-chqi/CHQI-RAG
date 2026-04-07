@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import {
   addEdge,
   Background,
@@ -47,6 +47,15 @@ const initialNodes: Node[] = [
 
 const initialEdges: Edge[] = [];
 
+const FALLBACK_RISK_LEVELS = ['HIGH', 'MEDIUM', 'LOW'];
+const FALLBACK_PATIENT_CATEGORIES = [
+  'NEW_ON_ART',
+  'PMTCT_CLIENTS',
+  'PAEDIATRIC_CAREGIVER',
+  'AHD_CLIENTS',
+  'ALL_GROUPS',
+];
+
 let idCounter = 2;
 const getId = () => `node-${idCounter++}`;
 
@@ -69,6 +78,31 @@ function normalizeWorkflowPayload(payload: unknown): Workflow | null {
     return source.data;
   }
   return null;
+}
+
+function normalizeTargetingConfig(payload: unknown): { riskLevels: string[]; patientCategories: string[] } {
+  const source = payload as {
+    data?: { riskLevels?: string[]; patientCategories?: string[] };
+    riskLevels?: string[];
+    patientCategories?: string[];
+  };
+
+  const riskLevels = Array.isArray(source?.riskLevels)
+    ? source.riskLevels
+    : Array.isArray(source?.data?.riskLevels)
+      ? source.data.riskLevels
+      : [];
+
+  const patientCategories = Array.isArray(source?.patientCategories)
+    ? source.patientCategories
+    : Array.isArray(source?.data?.patientCategories)
+      ? source.data.patientCategories
+      : [];
+
+  return {
+    riskLevels: riskLevels.length > 0 ? riskLevels : FALLBACK_RISK_LEVELS,
+    patientCategories: patientCategories.length > 0 ? patientCategories : FALLBACK_PATIENT_CATEGORIES,
+  };
 }
 
 type BuilderCanvasProps = {
@@ -227,14 +261,46 @@ export default function WorkflowBuilder() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingWorkflow, setIsLoadingWorkflow] = useState(false);
+  const [workflowRiskLevels, setWorkflowRiskLevels] = useState<string[]>(FALLBACK_RISK_LEVELS);
+  const [workflowPatientCategories, setWorkflowPatientCategories] = useState<string[]>(FALLBACK_PATIENT_CATEGORIES);
+  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
+  const categoriesDropdownRef = useRef<HTMLDivElement>(null);
 
   const [workflowMetadata, setWorkflowMetadata] = useState<WorkflowMetadata>({
     name: 'New Workflow',
     facilityId: null,
     triggerEvent: WorkflowTriggerEvent.DAYS_BEFORE_APPOINTMENT,
     triggerCondition: { days: 1 },
+    riskLevel: null,
+    patientCategories: [],
     isActive: true,
   });
+
+  useEffect(() => {
+    const handleCategoriesClickOutside = (e: MouseEvent) => {
+      if (categoriesDropdownRef.current && !categoriesDropdownRef.current.contains(e.target as Node)) {
+        setCategoriesDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleCategoriesClickOutside);
+    return () => document.removeEventListener('mousedown', handleCategoriesClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const loadTargetingConfig = async () => {
+      try {
+        const res = await smsServices.getWorkflowPatientCategoriesConfig();
+        const normalized = normalizeTargetingConfig(res);
+        setWorkflowRiskLevels(normalized.riskLevels);
+        setWorkflowPatientCategories(normalized.patientCategories);
+      } catch {
+        setWorkflowRiskLevels(FALLBACK_RISK_LEVELS);
+        setWorkflowPatientCategories(FALLBACK_PATIENT_CATEGORIES);
+      }
+    };
+
+    loadTargetingConfig();
+  }, []);
 
   useEffect(() => {
     const loadWorkflow = async () => {
@@ -244,6 +310,8 @@ export default function WorkflowBuilder() {
           facilityId: null,
           triggerEvent: WorkflowTriggerEvent.DAYS_BEFORE_APPOINTMENT,
           triggerCondition: { days: 1 },
+          riskLevel: null,
+          patientCategories: [],
           isActive: true,
         });
         setNodes(initialNodes);
@@ -267,6 +335,8 @@ export default function WorkflowBuilder() {
           facilityId: workflow.facilityId,
           triggerEvent: workflow.triggerEvent,
           triggerCondition: workflow.triggerCondition || {},
+          riskLevel: workflow.riskLevel ?? null,
+          patientCategories: Array.isArray(workflow.patientCategories) ? workflow.patientCategories : [],
           isActive: workflow.isActive,
         });
 
@@ -452,6 +522,93 @@ export default function WorkflowBuilder() {
               <option value="UNIVERSAL">Universal</option>
               <option value="FACILITY">Facility-specific</option>
             </select>
+          </div>
+
+          {/* Risk level */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500 whitespace-nowrap">Risk Level</span>
+            <select
+              className="h-8 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-700"
+              value={workflowMetadata.riskLevel || ''}
+              onChange={(e) =>
+                setWorkflowMetadata((prev) => ({
+                  ...prev,
+                  riskLevel: e.target.value ? (e.target.value as 'HIGH' | 'MEDIUM' | 'LOW') : null,
+                }))
+              }
+            >
+              <option value="">All risk levels</option>
+              {workflowRiskLevels.map((level) => (
+                <option key={level} value={level}>
+                  {level}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Patient categories — dropdown with checkboxes */}
+          <div className="flex items-center gap-2" ref={categoriesDropdownRef}>
+            <span className="text-xs font-medium text-gray-500 whitespace-nowrap">Patient Categories</span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={(e: ReactMouseEvent) => { e.stopPropagation(); setCategoriesDropdownOpen((prev) => !prev); }}
+                className="h-8 min-w-[160px] max-w-[220px] rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-700 flex items-center justify-between gap-2 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <span className="truncate">
+                  {(workflowMetadata.patientCategories?.length ?? 0) === 0
+                    ? 'All groups'
+                    : workflowMetadata.patientCategories!.length === workflowPatientCategories.length
+                    ? 'All groups'
+                    : workflowMetadata.patientCategories!.map((c) => c.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())).join(', ')}
+                </span>
+                <svg className={`w-3.5 h-3.5 shrink-0 text-gray-400 transition-transform ${categoriesDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
+              </button>
+
+              {categoriesDropdownOpen && (
+                <div className="absolute top-9 left-0 z-50 w-56 rounded-md border border-gray-200 bg-white shadow-lg py-1">
+                  <div className="px-3 py-1.5 border-b border-gray-100 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Filter by category</span>
+                    {(workflowMetadata.patientCategories?.length ?? 0) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setWorkflowMetadata((prev) => ({ ...prev, patientCategories: [] }))}
+                        className="text-[11px] text-blue-600 hover:underline"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  {workflowPatientCategories.map((category) => {
+                    const isChecked = (workflowMetadata.patientCategories || []).includes(category);
+                    const label = category.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+                    return (
+                      <label
+                        key={category}
+                        className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gray-50 select-none"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            const current = workflowMetadata.patientCategories || [];
+                            const next = isChecked
+                              ? current.filter((c) => c !== category)
+                              : [...current, category];
+                            setWorkflowMetadata((prev) => ({ ...prev, patientCategories: next }));
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{label}</span>
+                      </label>
+                    );
+                  })}
+                  <p className="px-3 pt-1.5 pb-2 text-[11px] text-gray-400 border-t border-gray-100 mt-1">
+                    Empty = all groups (backend default).
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Facility ID — only when facility scope is selected */}

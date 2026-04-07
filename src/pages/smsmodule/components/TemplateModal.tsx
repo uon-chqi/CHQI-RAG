@@ -158,6 +158,8 @@ export default function TemplateModal({
 
   const [name, setName] = useState('');
   const [body, setBody] = useState('');
+  const [bodySwahili, setBodySwahili] = useState('');
+  const [originalBodySwahili, setOriginalBodySwahili] = useState<string | null>(null);
   const [isUniversal, setIsUniversal] = useState(false);
 
   const [variables, setVariables] = useState<SmsTemplateVariable[]>([]);
@@ -178,10 +180,14 @@ export default function TemplateModal({
     if (existingTemplate) {
       setName(existingTemplate.name);
       setBody(existingTemplate.body);
+      setBodySwahili(existingTemplate.bodySwahili || '');
+      setOriginalBodySwahili(existingTemplate.bodySwahili ?? null);
       setIsUniversal(existingTemplate.facilityId === null);
     } else {
       setName('');
       setBody('');
+      setBodySwahili('');
+      setOriginalBodySwahili(null);
       setIsUniversal(false);
       setPreview(null);
     }
@@ -264,10 +270,32 @@ export default function TemplateModal({
       // all other users always attach their own facility
       const facilityId = isSuperAdmin && isUniversal ? null : (user?.facility_id ?? null);
 
-      const payload = { name: name.trim(), body: body.trim(), facilityId };
+      const normalizedBodySwahili = bodySwahili.trim();
+      const payload: {
+        name: string;
+        body: string;
+        facilityId: string | null;
+        bodySwahili?: string | null;
+        isBilingual?: boolean;
+      } = {
+        name: name.trim(),
+        body: body.trim(),
+        facilityId,
+      };
+
+      if (!existingTemplate || normalizedBodySwahili !== (originalBodySwahili ?? '').trim()) {
+        payload.bodySwahili = normalizedBodySwahili || null;
+      }
+
+      if (normalizedBodySwahili) {
+        payload.isBilingual = true;
+      }
 
       if (existingTemplate) {
-        await smsServices.updateTemplate(existingTemplate.id, payload);
+        await smsServices.updateTemplate(existingTemplate.id, payload, {
+          bodySwahili: originalBodySwahili,
+          isBilingual: existingTemplate.isBilingual,
+        });
       } else {
         await smsServices.createTemplate(payload);
       }
@@ -382,7 +410,7 @@ export default function TemplateModal({
             {/* Message body */}
             <div className="flex-1 flex flex-col">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Message Body
+                Message Body (English)
               </label>
               <textarea
                 ref={textareaRef}
@@ -392,6 +420,21 @@ export default function TemplateModal({
                 required
                 className="flex-1 min-h-[120px] w-full p-3 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-gray-400"
               />
+            </div>
+
+            <div className="flex-1 flex flex-col">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Message Body (Swahili, Optional)
+              </label>
+              <textarea
+                value={bodySwahili}
+                onChange={(e) => setBodySwahili(e.target.value)}
+                placeholder="Optional Swahili translation. If left empty, English body is used as fallback."
+                className="flex-1 min-h-[120px] w-full p-3 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-gray-400"
+              />
+              <p className="mt-1 text-[11px] text-gray-500">
+                Swahili patient + no translation = English fallback SMS.
+              </p>
             </div>
           </form>
 

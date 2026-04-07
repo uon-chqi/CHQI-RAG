@@ -299,6 +299,8 @@ function mapTemplateFromApi(template: SmsTemplateApi): SmsTemplate {
     facilityId: template.facilityId ?? template.facility_id ?? null,
     name: template.name,
     body: template.body,
+    bodySwahili: template.body_swahili ?? null,
+    isBilingual: template.is_bilingual,
     isActive: template.isActive ?? template.is_active ?? true,
     createdAt: template.createdAt ?? template.created_at ?? '',
     updatedAt: template.updatedAt ?? template.updated_at ?? '',
@@ -310,6 +312,12 @@ function mapTemplatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unk
 
   if (typeof data.name === 'string') payload.name = data.name;
   if (typeof data.body === 'string') payload.body = data.body;
+  if ('bodySwahili' in data) {
+    payload.body_swahili = data.bodySwahili && data.bodySwahili.trim() ? data.bodySwahili.trim() : null;
+  }
+  if ('isBilingual' in data && typeof data.isBilingual === 'boolean') {
+    payload.is_bilingual = data.isBilingual;
+  }
 
   if ('facilityId' in data) {
     payload.facility_id = data.facilityId ?? null;
@@ -323,11 +331,28 @@ function mapTemplatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unk
 }
 
 // PATCH /sms-templates/:id only accepts name, body, is_active — facility_id is create-only
-function mapTemplateUpdatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unknown> {
+function mapTemplateUpdatePayloadToApi(
+  data: Partial<SmsTemplate>,
+  original?: Pick<SmsTemplate, 'bodySwahili' | 'isBilingual'>
+): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
 
   if (typeof data.name === 'string') payload.name = data.name;
   if (typeof data.body === 'string') payload.body = data.body;
+
+  if ('bodySwahili' in data) {
+    const nextBodySwahili = typeof data.bodySwahili === 'string' ? data.bodySwahili.trim() : null;
+    const prevBodySwahili =
+      typeof original?.bodySwahili === 'string' ? original.bodySwahili.trim() : (original?.bodySwahili ?? null);
+
+    if (nextBodySwahili !== prevBodySwahili) {
+      payload.body_swahili = nextBodySwahili;
+    }
+  }
+
+  if ('isBilingual' in data && typeof data.isBilingual === 'boolean' && data.isBilingual !== original?.isBilingual) {
+    payload.is_bilingual = data.isBilingual;
+  }
 
   if ('isActive' in data && typeof data.isActive === 'boolean') {
     payload.is_active = data.isActive;
@@ -475,9 +500,9 @@ export const smsServices = {
       .post('/sms-templates', mapTemplatePayloadToApi(data))
       .then((r) => extractSingleTemplate(r.data)),
 
-  updateTemplate: (id: string, data: Partial<SmsTemplate>) =>
+  updateTemplate: (id: string, data: Partial<SmsTemplate>, original?: Pick<SmsTemplate, 'bodySwahili' | 'isBilingual'>) =>
     smsApi
-      .patch(`/sms-templates/${id}`, mapTemplateUpdatePayloadToApi(data))
+      .patch(`/sms-templates/${id}`, mapTemplateUpdatePayloadToApi(data, original))
       .then((r) => extractSingleTemplate(r.data)),
 
   deleteTemplate: (id: string) =>
@@ -492,6 +517,9 @@ export const smsServices = {
 
   getSystemModules: () =>
     smsApi.get('/communications/workflows/config/system-modules').then((r) => r.data),
+
+  getWorkflowPatientCategoriesConfig: () =>
+    smsApi.get('/communications/workflows/config/patient-categories').then((r) => r.data),
 
   // --- Workflow CRUD ---
   getWorkflows: (facilityId?: string) =>

@@ -7,6 +7,8 @@ export interface WorkflowMetadata {
   facilityId: string | null;
   triggerEvent: WorkflowTriggerEvent;
   triggerCondition?: Record<string, unknown>;
+  riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  patientCategories?: string[];
   isActive: boolean;
 }
 
@@ -23,6 +25,8 @@ type SerializedWorkflowPayload = {
   facilityId: string | null;
   triggerEvent: WorkflowTriggerEvent;
   triggerCondition: Record<string, unknown>;
+  riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  patientCategories?: string[];
   isActive: boolean;
   steps: SerializedWorkflowStep[];
 };
@@ -30,6 +34,8 @@ type SerializedWorkflowPayload = {
 type SerializedUpdatePayload = {
   name: string;
   isActive: boolean;
+  riskLevel?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  patientCategories?: string[];
   steps: SerializedWorkflowStep[];
 };
 
@@ -157,6 +163,10 @@ export const serializeWorkflowPayload = (
     facilityId: metadata.facilityId,
     triggerEvent: metadata.triggerEvent,
     triggerCondition: metadata.triggerCondition || {},
+    riskLevel: metadata.riskLevel ?? null,
+    patientCategories: metadata.patientCategories && metadata.patientCategories.length > 0
+      ? metadata.patientCategories
+      : undefined,
     isActive: metadata.isActive,
     steps,
   };
@@ -171,6 +181,8 @@ export const serializeUpdatePayload = (
   return {
     name: full.name,
     isActive: full.isActive,
+    riskLevel: full.riskLevel ?? null,
+    patientCategories: full.patientCategories,
     steps: full.steps,
   };
 };
