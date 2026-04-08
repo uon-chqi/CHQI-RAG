@@ -110,8 +110,15 @@ router.post('/login', async (req, res) => {
     const patient = result.rows[0];
 
     // Verify phone number matches
-    const normalise = (p) => p.replace(/\s+/g, '').replace(/^0/, '+254');
-    if (normalise(patient.phone) !== normalise(phone.trim())) {
+    // Normalize phone to 07XXXXXXXX format
+    const normalizePhone = (p) => {
+      let phone = p.replace(/\s+/g, '');
+      if (phone.startsWith('+2547')) {
+        return '0' + phone.slice(4);
+      }
+      return phone;
+    };
+    if (normalizePhone(patient.phone) !== normalizePhone(phone.trim())) {
       return res.status(401).json({ success: false, error: 'Phone number does not match the CCC number on file.' });
     }
 

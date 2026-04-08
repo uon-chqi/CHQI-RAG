@@ -115,8 +115,15 @@ router.post('/sync', async (req, res) => {
         appointments: patientAppointments = []
       } = patient;
 
+
+      // --- Normalize phone_number to 07XXXXXXXX format ---
+      let normalizedPhone = phone_number ? phone_number.replace(/\s+/g, '') : '';
+      if (normalizedPhone.startsWith('+2547')) {
+        normalizedPhone = '0' + normalizedPhone.slice(4);
+      }
+
       // --- Validate required fields ---
-      if (!patient_id || !phone_number) {
+      if (!patient_id || !normalizedPhone) {
         patientResults.push({
           patient_id,
           success: false,
@@ -141,7 +148,7 @@ router.post('/sync', async (req, res) => {
                updated_at    = now()
            RETURNING id`,
           [
-            phone_number,
+            normalizedPhone,
             facilityId,
             patient_name || null,
             email || null,

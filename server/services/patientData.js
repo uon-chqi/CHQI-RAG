@@ -21,7 +21,8 @@ class PatientDataService {
         throw new Error('You do not have access to this facility');
       }
 
-      const {
+
+      let {
         firstName,
         lastName,
         dateOfBirth,
@@ -35,6 +36,14 @@ class PatientDataService {
         emergencyContactName,
         emergencyContactPhone
       } = patientData;
+
+      // Normalize phone to 07XXXXXXXX format before saving
+      if (phone) {
+        phone = phone.replace(/\s+/g, '');
+        if (phone.startsWith('+2547')) {
+          phone = '0' + phone.slice(4);
+        }
+      }
 
       // Create patient
       const patientQuery = `
