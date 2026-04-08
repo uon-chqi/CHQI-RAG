@@ -36,7 +36,12 @@ const DEFAULT_PORT = parseInt(process.env.PORT) || 5000;
 app.use(cors({
   origin: [
     'https://sms-portal.chqi.org',
-    'http://sms-portal.chqi.org'
+    'http://sms-portal.chqi.org',
+    'https://192.168.0.106',
+    'http://192.168.0.106',
+    'http://localhost:3000',
+    'http://localhost',
+    'https://localhost'
   ],
   credentials: true
 }));
