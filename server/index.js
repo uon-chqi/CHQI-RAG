@@ -33,7 +33,13 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT) || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://sms-portal.chqi.org',
+    'http://sms-portal.chqi.org'
+  ],
+  credentials: true
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
