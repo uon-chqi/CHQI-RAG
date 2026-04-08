@@ -105,15 +105,26 @@ router.post('/sync', async (req, res) => {
     let appointmentsCreated = 0;
 
     for (const patient of patients) {
+
       const {
         patient_id,
         phone_number,
+        ccc_number,
         patient_name,
         email,
         risk_level = 'MEDIUM',
         status = 'active',
         appointments: patientAppointments = []
       } = patient;
+
+      // --- Normalize phone_number to 07XXXXXXXX format ---
+      let normalizedPhone = phone_number ? phone_number.replace(/\s+/g, '') : '';
+      if (normalizedPhone.startsWith('+2547')) {
+        normalizedPhone = '0' + normalizedPhone.slice(4);
+      }
+
+      // --- Normalize ccc_number to remove dashes and dots ---
+      let normalizedCCC = ccc_number ? ccc_number.replace(/[-.]/g, '') : '';
 
 
       // --- Normalize phone_number to 07XXXXXXXX format ---
@@ -154,7 +165,7 @@ router.post('/sync', async (req, res) => {
             email || null,
             risk_level,
             status,
-            JSON.stringify({ external_id: patient_id })
+            JSON.stringify({ external_id: patient_id, ccc_number: normalizedCCC })
           ]
         );
         patientUUID = result.rows[0].id;

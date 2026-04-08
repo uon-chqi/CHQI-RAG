@@ -67,11 +67,13 @@ export default function ClientChat() {
     if (!phone.trim() || !ccc.trim()) return;
     setLoggingIn(true);
     setLoginError('');
+    // Normalize CCC number to remove dashes and dots before sending
+    const normalizedCCC = ccc.trim().replace(/[-.]/g, '');
     try {
       const res = await fetch(`${API_BASE}/api/chatbot/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone.trim(), ccc_number: ccc.trim() }),
+        body: JSON.stringify({ phone: phone.trim(), ccc_number: normalizedCCC }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -207,7 +209,7 @@ export default function ClientChat() {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="e.g. 0712345678 or +254712345678"
+                placeholder="e.g. 0712345678"
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                 required
               />
@@ -220,7 +222,7 @@ export default function ClientChat() {
                 type="text"
                 value={ccc}
                 onChange={(e) => setCcc(e.target.value)}
-                placeholder="e.g. CCC-NBI-001"
+                placeholder="e.g. 0000000000"
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                 required
               />

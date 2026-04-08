@@ -94,14 +94,17 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Phone number and CCC number are required' });
     }
 
-    // Look up patient by CCC number
+    // Normalize CCC number to remove dashes and dots
+    const normalizedCCC = ccc_number.replace(/[-.]/g, '');
+
+    // Look up patient by normalized CCC number
     const result = await db.query(`
       SELECT p.id, p.first_name, p.last_name, p.phone, p.ccc_number, p.risk_level,
              p.facility_id, f.name AS facility_name, f.code AS facility_code
       FROM patients p
       LEFT JOIN facilities f ON p.facility_id = f.id
-      WHERE p.ccc_number = $1
-    `, [ccc_number.trim()]);
+      WHERE REPLACE(REPLACE(p.ccc_number, '-', ''), '.', '') = $1
+    `, [normalizedCCC.trim()]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ success: false, error: 'Invalid CCC number. Please check and try again.' });

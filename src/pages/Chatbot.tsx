@@ -194,7 +194,7 @@ export default function Chatbot() {
                   type="text"
                   value={ccc}
                   onChange={(e) => setCcc(e.target.value)}
-                  placeholder="CCC-XXX-XXXX"
+                  placeholder="00000000000"
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   disabled={loggingIn}
                 />

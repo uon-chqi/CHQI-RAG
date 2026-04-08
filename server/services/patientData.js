@@ -28,6 +28,7 @@ class PatientDataService {
         dateOfBirth,
         gender,
         phone,
+        ccc_number,
         email,
         nationalId,
         bloodGroup,
@@ -43,6 +44,10 @@ class PatientDataService {
         if (phone.startsWith('+2547')) {
           phone = '0' + phone.slice(4);
         }
+      }
+      // Normalize ccc_number to remove dashes and dots
+      if (ccc_number) {
+        ccc_number = ccc_number.replace(/[-.]/g, '');
       }
 
       // Create patient
