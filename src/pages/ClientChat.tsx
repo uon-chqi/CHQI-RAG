@@ -222,7 +222,7 @@ export default function ClientChat() {
                 type="text"
                 value={ccc}
                 onChange={(e) => setCcc(e.target.value)}
-                placeholder="e.g. 0000000000"
+                placeholder="e.g. 2303309876"
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                 required
               />
