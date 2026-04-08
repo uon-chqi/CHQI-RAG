@@ -126,13 +126,6 @@ router.post('/sync', async (req, res) => {
       // --- Normalize ccc_number to remove dashes and dots ---
       let normalizedCCC = ccc_number ? ccc_number.replace(/[-.]/g, '') : '';
 
-
-      // --- Normalize phone_number to 07XXXXXXXX format ---
-      let normalizedPhone = phone_number ? phone_number.replace(/\s+/g, '') : '';
-      if (normalizedPhone.startsWith('+2547')) {
-        normalizedPhone = '0' + normalizedPhone.slice(4);
-      }
-
       // --- Validate required fields ---
       if (!patient_id || !normalizedPhone) {
         patientResults.push({
