@@ -34,11 +34,10 @@ const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT) || 5000;
 
 const allowedOrigins = [
-  'http://192.168.0.106',
   'https://192.168.0.106',
-  // add other origins as needed
+  'http://192.168.0.106',
+  // add others as needed
 ];
-
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
