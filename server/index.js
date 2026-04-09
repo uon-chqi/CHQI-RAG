@@ -33,14 +33,30 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT) || 5000;
 
+// --- CORS: Allow frontend and backend domains ---
 const allowedOrigins = [
-  'https://192.168.0.106',
+  'http://sms-portal.chqi.org',
+  'https://sms-portal.chqi.org',
+  'http://api-sms-portal.chqi.org',
+  'https://api-sms-portal.chqi.org',
+  'http://localhost:5173', // Vite dev server
+  'http://localhost:3000', // React dev server
   'http://192.168.0.106',
-  // add others as needed
+  'https://192.168.0.106',
 ];
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
 }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
