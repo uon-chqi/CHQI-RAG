@@ -86,13 +86,22 @@ app.get('/api/health', (req, res) => {
 
 app.use(errorHandler);
 
-// ── Serve frontend in production ────────────────────────────
+// ── Serve frontend in production ONLY for frontend domain ──
 const distPath = path.join(__dirname, '..', 'dist');
-app.use(express.static(distPath));
-
-// SPA fallback: any non-API route serves index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+app.use((req, res, next) => {
+  if (req.hostname === 'sms-portal.chqi.org') {
+    express.static(distPath)(req, res, (err) => {
+      if (err) return next(err);
+      // If not a static file and not an API route, serve index.html for SPA routing
+      if (!req.path.startsWith('/api/')) {
+        res.sendFile(path.join(distPath, 'index.html'));
+      } else {
+        next();
+      }
+    });
+  } else {
+    next();
+  }
 });
 
 // Function to start server with retry logic
