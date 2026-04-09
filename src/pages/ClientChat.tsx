@@ -2,12 +2,29 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Send, Bot, LogOut } from 'lucide-react';
 
+// WhatsApp-style typing indicator
+function TypingIndicator() {
+  return (
+    <div className="flex items-center gap-2 text-green-600">
+      <span className="relative flex h-2 w-6">
+        <span className="absolute left-0 h-2 w-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '0ms', fontWeight: 300}}></span>
+        <span className="absolute left-2 h-2 w-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '150ms', fontWeight: 300}}></span>
+        <span className="absolute left-4 h-2 w-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '300ms', fontWeight: 300}}></span>
+      </span>
+      <span className="text-xs font-normal">typing…</span>
+    </div>
+  );
+}
+
+// This is a stripped-down version of Chatbot for client-only access (no navigation)
+const API_BASE = import.meta.env.VITE_API_URL || '';
+>>>>>>> Stashed changes
+
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
-  isLoading?: boolean;
 }
 
 interface PatientSession {
@@ -287,12 +304,7 @@ export default function ClientChat() {
                 }`}
               >
                 {msg.isLoading ? (
-                  <div className="flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1.5 rounded-full w-fit">
-                    <span className="text-sm font-medium">typing</span>
-                    <span className="block h-2 w-2 rounded-full bg-green-600 animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                    <span className="block h-2 w-2 rounded-full bg-green-600 animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                    <span className="block h-2 w-2 rounded-full bg-green-600 animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                  </div>
+                  <TypingIndicator />
                 ) : (
                   <>
                     <p className="whitespace-pre-wrap break-words">{msg.text}</p>
