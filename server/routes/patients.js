@@ -64,7 +64,7 @@ router.get('/', async (req, res) => {
     }
     
     if (search) {
-      whereClause += ` AND (p.first_name ILIKE $${paramIndex} OR p.last_name ILIKE $${paramIndex} OR p.phone ILIKE $${paramIndex})`;
+      whereClause += ` AND (p.first_name ILIKE $${paramIndex} OR p.last_name ILIKE $${paramIndex} OR p.phone ILIKE $${paramIndex} OR p.ccc_number ILIKE $${paramIndex})`;
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
@@ -88,6 +88,13 @@ router.get('/', async (req, res) => {
         p.email,
         p.ccc_number,
         p.risk_level,
+        p.next_appointment_date,
+        p.appointment_status,
+        p.last_visit_date,
+        p.last_viral_load,
+        p.county,
+        p.sub_county,
+        p.ward,
         p.enrollment_date,
         p.is_active as status,
         p.created_at
