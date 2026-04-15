@@ -545,6 +545,9 @@ router.post(
           const caseManager = String(row.case_manager_assigned || row.case_manager || '').trim() || null;
           const externalId = row.patient_id ? parseInt(row.patient_id, 10) || null : null;
           const riskFactors = String(row.risk_factors || '').trim() || null;
+          const email = String(row.email || '').trim() || null;
+          const physicalAddress = String(row.physical_address || row.address || '').trim() || null;
+          const enrollmentDate = row.enrollment_date || null;
 
           // --- Upsert by ccc_number ---
           if (!cccNumber) {
@@ -585,15 +588,19 @@ router.post(
                 address6 = COALESCE(NULLIF($22, ''), address6),
                 marital_status = COALESCE(NULLIF($23, ''), marital_status),
                 case_manager = COALESCE(NULLIF($24, ''), case_manager),
+                email = COALESCE(NULLIF($25, ''), email),
+                physical_address = COALESCE(NULLIF($26, ''), physical_address),
+                enrollment_date = COALESCE($27::DATE, enrollment_date),
                 updated_at = NOW()
-              WHERE ccc_number = $25
+              WHERE ccc_number = $28
             `, [
               facilityId, firstName, lastName, gender, dob, phone,
               riskLevel, appointmentDate, externalId, visitDate,
               age, riskScore, riskFactors, lastViralLoad,
               appointmentStatus, county, subCounty, ward,
               cityVillage, landmark, address5, address6,
-              maritalStatus, caseManager, cccNumber
+              maritalStatus, caseManager, email, physicalAddress,
+              enrollmentDate, cccNumber
             ]);
             updated++;
           } else {
@@ -605,11 +612,13 @@ router.post(
                 risk_factors, last_viral_load, appointment_status,
                 county, sub_county, ward, city_village, landmark,
                 address5, address6, marital_status, case_manager,
+                email, physical_address, enrollment_date,
                 is_active
               ) VALUES (
                 $1, $2, $3, $4, $5, $6::DATE, $7, $8, $9::TIMESTAMPTZ,
                 $10, $11::DATE, $12, $13, $14, $15, $16,
                 $17, $18, $19, $20, $21, $22, $23, $24, $25,
+                $26, $27, $28::DATE,
                 TRUE
               )
             `, [
@@ -618,7 +627,8 @@ router.post(
               externalId, visitDate, age, riskScore,
               riskFactors, lastViralLoad, appointmentStatus,
               county, subCounty, ward, cityVillage, landmark,
-              address5, address6, maritalStatus, caseManager
+              address5, address6, maritalStatus, caseManager,
+              email, physicalAddress, enrollmentDate
             ]);
             created++;
           }
@@ -757,6 +767,9 @@ router.post(
           const caseManager = (row.case_manager_assigned || '').trim() || null;
           const externalId = row.patient_id ? parseInt(row.patient_id, 10) || null : null;
           const riskFactors = (row.risk_factors || '').trim() || null;
+          const email = (row.email || '').trim() || null;
+          const physicalAddress = (row.physical_address || row.address || '').trim() || null;
+          const enrollmentDate = row.enrollment_date ? row.enrollment_date.trim() : null;
 
           // --- Upsert: match by ccc_number (primary key for dedup) ---
           if (!cccNumber) {
@@ -798,15 +811,19 @@ router.post(
                 address6 = COALESCE(NULLIF($22, ''), address6),
                 marital_status = COALESCE(NULLIF($23, ''), marital_status),
                 case_manager = COALESCE(NULLIF($24, ''), case_manager),
+                email = COALESCE(NULLIF($25, ''), email),
+                physical_address = COALESCE(NULLIF($26, ''), physical_address),
+                enrollment_date = COALESCE($27::DATE, enrollment_date),
                 updated_at = NOW()
-              WHERE ccc_number = $25
+              WHERE ccc_number = $28
             `, [
               facilityId, firstName, lastName, gender, dob, phone,
               riskLevel, appointmentDate, externalId, visitDate,
               age, riskScore, riskFactors, lastViralLoad,
               appointmentStatus, county, subCounty, ward,
               cityVillage, landmark, address5, address6,
-              maritalStatus, caseManager, cccNumber
+              maritalStatus, caseManager, email, physicalAddress,
+              enrollmentDate, cccNumber
             ]);
             updated++;
           } else {
@@ -819,11 +836,13 @@ router.post(
                 risk_factors, last_viral_load, appointment_status,
                 county, sub_county, ward, city_village, landmark,
                 address5, address6, marital_status, case_manager,
+                email, physical_address, enrollment_date,
                 is_active
               ) VALUES (
                 $1, $2, $3, $4, $5, $6::DATE, $7, $8, $9::TIMESTAMPTZ,
                 $10, $11::DATE, $12, $13, $14, $15, $16,
                 $17, $18, $19, $20, $21, $22, $23, $24, $25,
+                $26, $27, $28::DATE,
                 TRUE
               )
             `, [
@@ -832,7 +851,8 @@ router.post(
               externalId, visitDate, age, riskScore,
               riskFactors, lastViralLoad, appointmentStatus,
               county, subCounty, ward, cityVillage, landmark,
-              address5, address6, maritalStatus, caseManager
+              address5, address6, maritalStatus, caseManager,
+              email, physicalAddress, enrollmentDate
             ]);
             created++;
           }
