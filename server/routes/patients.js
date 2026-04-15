@@ -453,6 +453,199 @@ router.delete(
 );
 
 // ================================================================
+// POST /api/patients/upload-json
+// Bulk import patients from JSON body (API integration)
+// Accepts: { "patients": [ { patient_name, ccc_number, facility_mfl, ... }, ... ] }
+// Deduplicates by ccc_number — existing records are updated, new ones created.
+// ================================================================
+router.post(
+  '/upload-json',
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    const client = await db.pool.connect();
+    try {
+      const { patients } = req.body;
+      if (!Array.isArray(patients) || patients.length === 0) {
+        return res.status(400).json({ success: false, error: '"patients" must be a non-empty array' });
+      }
+
+      await client.query('BEGIN');
+
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+      const errors = [];
+
+      for (let i = 0; i < patients.length; i++) {
+        const row = patients[i];
+        try {
+          // --- Resolve facility by MFL code or name ---
+          const facilityMfl = String(row.facility_mfl || '').trim();
+          const facilityName = String(row.facility_name || '').trim();
+          let facilityId = null;
+
+          if (facilityMfl) {
+            const facResult = await client.query(
+              'SELECT id FROM facilities WHERE code = $1 AND is_active = TRUE LIMIT 1',
+              [facilityMfl]
+            );
+            if (facResult.rows.length > 0) facilityId = facResult.rows[0].id;
+          }
+          if (!facilityId && facilityName) {
+            const facResult = await client.query(
+              'SELECT id FROM facilities WHERE LOWER(name) = LOWER($1) AND is_active = TRUE LIMIT 1',
+              [facilityName]
+            );
+            if (facResult.rows.length > 0) facilityId = facResult.rows[0].id;
+          }
+
+          // --- Parse patient name ---
+          const fullName = String(row.patient_name || '').trim();
+          const nameParts = fullName.split(/\s+/);
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+
+          // --- Normalize phone ---
+          let phone = String(row.phone_number || row.phone || '').trim().replace(/\s+/g, '');
+          if (phone.startsWith('+2547')) phone = '0' + phone.slice(4);
+
+          // --- Normalize CCC number ---
+          const cccNumber = String(row.ccc_number || '').trim().replace(/[-.]/g, '');
+
+          // --- Parse dates ---
+          const dob = row.dob || row.date_of_birth || null;
+          const visitDate = row.visit_date || row.last_visit_date || null;
+          const appointmentDate = row.appointment_date || row.next_appointment_date || null;
+
+          // --- Parse risk ---
+          const riskClassification = String(row.risk_classification || row.risk_level || 'Unknown').trim();
+          let riskLevel = 'unknown';
+          if (/high/i.test(riskClassification)) riskLevel = 'high';
+          else if (/medium/i.test(riskClassification)) riskLevel = 'medium';
+          else if (/low/i.test(riskClassification)) riskLevel = 'low';
+
+          const riskScore = row.risk_classification_value
+            ? parseFloat(row.risk_classification_value) || null
+            : null;
+
+          // --- Other fields ---
+          const gender = String(row.gender || '').trim().toUpperCase() || null;
+          const age = row.age ? parseInt(row.age, 10) || null : null;
+          const lastViralLoad = String(row.last_viral_load || '').trim() || null;
+          const appointmentStatus = String(row.appointment_status || 'Pending').trim();
+          const county = String(row.county || '').trim() || null;
+          const subCounty = String(row.sub_county || '').trim() || null;
+          const ward = String(row.ward || '').trim() || null;
+          const cityVillage = String(row.city_village || '').trim() || null;
+          const landmark = String(row.landmark || '').trim() || null;
+          const address5 = String(row.address5 || '').trim() || null;
+          const address6 = String(row.address6 || '').trim() || null;
+          const maritalStatus = String(row.marital_status || '').trim() || null;
+          const caseManager = String(row.case_manager_assigned || row.case_manager || '').trim() || null;
+          const externalId = row.patient_id ? parseInt(row.patient_id, 10) || null : null;
+          const riskFactors = String(row.risk_factors || '').trim() || null;
+
+          // --- Upsert by ccc_number ---
+          if (!cccNumber) {
+            skipped++;
+            errors.push({ index: i, reason: 'Missing ccc_number' });
+            continue;
+          }
+
+          const existing = await client.query(
+            'SELECT id FROM patients WHERE ccc_number = $1 LIMIT 1',
+            [cccNumber]
+          );
+
+          if (existing.rows.length > 0) {
+            await client.query(`
+              UPDATE patients SET
+                facility_id = COALESCE($1, facility_id),
+                first_name = COALESCE(NULLIF($2, ''), first_name),
+                last_name = COALESCE(NULLIF($3, ''), last_name),
+                gender = COALESCE(NULLIF($4, ''), gender),
+                date_of_birth = COALESCE($5::DATE, date_of_birth),
+                phone = COALESCE(NULLIF($6, ''), phone),
+                risk_level = $7,
+                next_appointment_date = COALESCE($8::TIMESTAMPTZ, next_appointment_date),
+                external_patient_id = COALESCE($9, external_patient_id),
+                last_visit_date = COALESCE($10::DATE, last_visit_date),
+                age = COALESCE($11, age),
+                risk_score = COALESCE($12, risk_score),
+                risk_factors = COALESCE(NULLIF($13, ''), risk_factors),
+                last_viral_load = COALESCE(NULLIF($14, ''), last_viral_load),
+                appointment_status = COALESCE(NULLIF($15, ''), appointment_status),
+                county = COALESCE(NULLIF($16, ''), county),
+                sub_county = COALESCE(NULLIF($17, ''), sub_county),
+                ward = COALESCE(NULLIF($18, ''), ward),
+                city_village = COALESCE(NULLIF($19, ''), city_village),
+                landmark = COALESCE(NULLIF($20, ''), landmark),
+                address5 = COALESCE(NULLIF($21, ''), address5),
+                address6 = COALESCE(NULLIF($22, ''), address6),
+                marital_status = COALESCE(NULLIF($23, ''), marital_status),
+                case_manager = COALESCE(NULLIF($24, ''), case_manager),
+                updated_at = NOW()
+              WHERE ccc_number = $25
+            `, [
+              facilityId, firstName, lastName, gender, dob, phone,
+              riskLevel, appointmentDate, externalId, visitDate,
+              age, riskScore, riskFactors, lastViralLoad,
+              appointmentStatus, county, subCounty, ward,
+              cityVillage, landmark, address5, address6,
+              maritalStatus, caseManager, cccNumber
+            ]);
+            updated++;
+          } else {
+            await client.query(`
+              INSERT INTO patients (
+                facility_id, ccc_number, first_name, last_name, gender,
+                date_of_birth, phone, risk_level, next_appointment_date,
+                external_patient_id, last_visit_date, age, risk_score,
+                risk_factors, last_viral_load, appointment_status,
+                county, sub_county, ward, city_village, landmark,
+                address5, address6, marital_status, case_manager,
+                is_active
+              ) VALUES (
+                $1, $2, $3, $4, $5, $6::DATE, $7, $8, $9::TIMESTAMPTZ,
+                $10, $11::DATE, $12, $13, $14, $15, $16,
+                $17, $18, $19, $20, $21, $22, $23, $24, $25,
+                TRUE
+              )
+            `, [
+              facilityId, cccNumber, firstName, lastName, gender,
+              dob, phone, riskLevel, appointmentDate,
+              externalId, visitDate, age, riskScore,
+              riskFactors, lastViralLoad, appointmentStatus,
+              county, subCounty, ward, cityVillage, landmark,
+              address5, address6, maritalStatus, caseManager
+            ]);
+            created++;
+          }
+        } catch (rowErr) {
+          skipped++;
+          errors.push({ index: i, reason: rowErr.message });
+        }
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        summary: { totalRows: patients.length, created, updated, skipped },
+        errors: errors.slice(0, 50),
+      });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('Error in JSON upload:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// ================================================================
 // POST /api/patients/upload-csv
 // Bulk import patients from CSV file (admin only)
 // ================================================================
