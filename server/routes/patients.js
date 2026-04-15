@@ -4,6 +4,8 @@
 // API endpoints for patient management with multi-facility support
 
 import express from 'express';
+import multer from 'multer';
+import { parse } from 'csv-parse/sync';
 import PatientDataService from '../services/patientData.js';
 import AccessControlService from '../services/accessControl.js';
 import db from '../config/database.js';
@@ -12,6 +14,21 @@ import {
   requirePatientAccess,
   auditDataAccess
 } from '../middleware/authorization.js';
+import { authenticateToken, requireSuperAdmin } from '../middleware/auth.js';
+
+// Multer config for CSV uploads (memory storage, 10MB max)
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
+    if (allowed.includes(file.mimetype) || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed'));
+    }
+  },
+});
 
 const router = express.Router();
 
@@ -395,5 +412,223 @@ router.get(
   }
 );
 
-export default router;
+// ================================================================
+// POST /api/patients/upload-csv
+// Bulk import patients from CSV file (admin only)
+// ================================================================
+router.post(
+  '/upload-csv',
+  authenticateToken,
+  requireSuperAdmin,
+  csvUpload.single('file'),
+  async (req, res) => {
+    const client = await db.pool.connect();
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'No CSV file uploaded' });
+      }
 
+      // Parse CSV from buffer
+      const csvContent = req.file.buffer.toString('utf-8');
+      const records = parse(csvContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        bom: true,
+      });
+
+      if (!records.length) {
+        return res.status(400).json({ success: false, error: 'CSV file is empty' });
+      }
+
+      await client.query('BEGIN');
+
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+      const errors = [];
+
+      for (let i = 0; i < records.length; i++) {
+        const row = records[i];
+        try {
+          // --- Resolve facility by MFL code ---
+          const facilityMfl = (row.facility_mfl || '').trim();
+          const facilityName = (row.facility_name || '').trim();
+          let facilityId = null;
+
+          if (facilityMfl) {
+            const facResult = await client.query(
+              'SELECT id FROM facilities WHERE code = $1 AND is_active = TRUE LIMIT 1',
+              [facilityMfl]
+            );
+            if (facResult.rows.length > 0) {
+              facilityId = facResult.rows[0].id;
+            }
+          }
+
+          // If not found by code, try by name
+          if (!facilityId && facilityName) {
+            const facResult = await client.query(
+              'SELECT id FROM facilities WHERE LOWER(name) = LOWER($1) AND is_active = TRUE LIMIT 1',
+              [facilityName]
+            );
+            if (facResult.rows.length > 0) {
+              facilityId = facResult.rows[0].id;
+            }
+          }
+
+          // --- Parse patient name ---
+          const fullName = (row.patient_name || '').trim();
+          const nameParts = fullName.split(/\s+/);
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+
+          // --- Normalize phone ---
+          let phone = (row.phone_number || '').trim().replace(/\s+/g, '');
+          if (phone.startsWith('+2547')) {
+            phone = '0' + phone.slice(4);
+          }
+
+          // --- Normalize CCC number ---
+          const cccNumber = (row.ccc_number || '').trim().replace(/[-.]/g, '');
+
+          // --- Parse dates ---
+          const dob = row.dob ? row.dob.trim() : null;
+          const visitDate = row.visit_date ? row.visit_date.trim() : null;
+          const appointmentDate = row.appointment_date ? row.appointment_date.trim() : null;
+
+          // --- Parse risk ---
+          const riskClassification = (row.risk_classification || 'Unknown').trim();
+          let riskLevel = 'unknown';
+          if (/high/i.test(riskClassification)) riskLevel = 'high';
+          else if (/medium/i.test(riskClassification)) riskLevel = 'medium';
+          else if (/low/i.test(riskClassification)) riskLevel = 'low';
+
+          const riskScore = row.risk_classification_value
+            ? parseFloat(row.risk_classification_value) || null
+            : null;
+
+          // --- Parse other fields ---
+          const gender = (row.gender || '').trim().toUpperCase() || null;
+          const age = row.age ? parseInt(row.age, 10) || null : null;
+          const lastViralLoad = (row.last_viral_load || '').trim() || null;
+          const appointmentStatus = (row.appointment_status || 'Pending').trim();
+          const county = (row.county || '').trim() || null;
+          const subCounty = (row.sub_county || '').trim() || null;
+          const ward = (row.ward || '').trim() || null;
+          const cityVillage = (row.city_village || '').trim() || null;
+          const landmark = (row.landmark || '').trim() || null;
+          const address5 = (row.address5 || '').trim() || null;
+          const address6 = (row.address6 || '').trim() || null;
+          const maritalStatus = (row.marital_status || '').trim() || null;
+          const caseManager = (row.case_manager_assigned || '').trim() || null;
+          const externalId = row.patient_id ? parseInt(row.patient_id, 10) || null : null;
+          const riskFactors = (row.risk_factors || '').trim() || null;
+
+          // --- Upsert: match by ccc_number (primary key for dedup) ---
+          if (!cccNumber) {
+            skipped++;
+            errors.push({ row: i + 2, reason: 'Missing ccc_number' });
+            continue;
+          }
+
+          const existing = await client.query(
+            'SELECT id FROM patients WHERE ccc_number = $1 LIMIT 1',
+            [cccNumber]
+          );
+
+          if (existing.rows.length > 0) {
+            // UPDATE existing patient
+            await client.query(`
+              UPDATE patients SET
+                facility_id = COALESCE($1, facility_id),
+                first_name = COALESCE(NULLIF($2, ''), first_name),
+                last_name = COALESCE(NULLIF($3, ''), last_name),
+                gender = COALESCE(NULLIF($4, ''), gender),
+                date_of_birth = COALESCE($5::DATE, date_of_birth),
+                phone = COALESCE(NULLIF($6, ''), phone),
+                risk_level = $7,
+                next_appointment_date = COALESCE($8::TIMESTAMPTZ, next_appointment_date),
+                external_patient_id = COALESCE($9, external_patient_id),
+                last_visit_date = COALESCE($10::DATE, last_visit_date),
+                age = COALESCE($11, age),
+                risk_score = COALESCE($12, risk_score),
+                risk_factors = COALESCE(NULLIF($13, ''), risk_factors),
+                last_viral_load = COALESCE(NULLIF($14, ''), last_viral_load),
+                appointment_status = COALESCE(NULLIF($15, ''), appointment_status),
+                county = COALESCE(NULLIF($16, ''), county),
+                sub_county = COALESCE(NULLIF($17, ''), sub_county),
+                ward = COALESCE(NULLIF($18, ''), ward),
+                city_village = COALESCE(NULLIF($19, ''), city_village),
+                landmark = COALESCE(NULLIF($20, ''), landmark),
+                address5 = COALESCE(NULLIF($21, ''), address5),
+                address6 = COALESCE(NULLIF($22, ''), address6),
+                marital_status = COALESCE(NULLIF($23, ''), marital_status),
+                case_manager = COALESCE(NULLIF($24, ''), case_manager),
+                updated_at = NOW()
+              WHERE ccc_number = $25
+            `, [
+              facilityId, firstName, lastName, gender, dob, phone,
+              riskLevel, appointmentDate, externalId, visitDate,
+              age, riskScore, riskFactors, lastViralLoad,
+              appointmentStatus, county, subCounty, ward,
+              cityVillage, landmark, address5, address6,
+              maritalStatus, caseManager, cccNumber
+            ]);
+            updated++;
+          } else {
+            // INSERT new patient
+            await client.query(`
+              INSERT INTO patients (
+                facility_id, ccc_number, first_name, last_name, gender,
+                date_of_birth, phone, risk_level, next_appointment_date,
+                external_patient_id, last_visit_date, age, risk_score,
+                risk_factors, last_viral_load, appointment_status,
+                county, sub_county, ward, city_village, landmark,
+                address5, address6, marital_status, case_manager,
+                is_active
+              ) VALUES (
+                $1, $2, $3, $4, $5, $6::DATE, $7, $8, $9::TIMESTAMPTZ,
+                $10, $11::DATE, $12, $13, $14, $15, $16,
+                $17, $18, $19, $20, $21, $22, $23, $24, $25,
+                TRUE
+              )
+            `, [
+              facilityId, cccNumber, firstName, lastName, gender,
+              dob, phone, riskLevel, appointmentDate,
+              externalId, visitDate, age, riskScore,
+              riskFactors, lastViralLoad, appointmentStatus,
+              county, subCounty, ward, cityVillage, landmark,
+              address5, address6, maritalStatus, caseManager
+            ]);
+            created++;
+          }
+        } catch (rowErr) {
+          skipped++;
+          errors.push({ row: i + 2, reason: rowErr.message });
+        }
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        summary: {
+          totalRows: records.length,
+          created,
+          updated,
+          skipped,
+        },
+        errors: errors.slice(0, 50), // Return first 50 errors max
+      });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('CSV upload error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+export default router;
