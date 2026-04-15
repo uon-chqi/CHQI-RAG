@@ -154,6 +154,25 @@ router.put('/:id', async (req, res) => {
       console.error('Failed to log SMS message:', logErr);
     }
 
+    // Also save a conversation record so the patient sees it in chatbot history
+    try {
+      const chatMessage = action === 'approved'
+        ? `Great news! Your rescheduled appointment for ${fmtDate} has been approved. See you then!`
+        : `Your appointment reschedule request for ${fmtDate} was not approved. Please contact the clinic for assistance.`;
+
+      await pool.query(
+        `INSERT INTO conversations (patient_phone, message, response, channel)
+         VALUES ($1, $2, $3, 'chatbot')`,
+        [
+          request.phone_number,
+          `Reschedule request update for ${fmtDate}`,
+          chatMessage,
+        ]
+      );
+    } catch (convErr) {
+      console.error('Failed to save reschedule conversation:', convErr);
+    }
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Error updating reschedule request:', error);

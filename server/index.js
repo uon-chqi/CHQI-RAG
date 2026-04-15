@@ -39,6 +39,7 @@ const allowedOrigins = [
   'https://sms-portal.chqi.org',
   'http://api-sms-portal.chqi.org',
   'https://api-sms-portal.chqi.org',
+  'https://providerdashboard-production.up.railway.app',
   'http://localhost:5173', // Vite dev server
   'http://localhost:3000', // React dev server
   'http://192.168.0.106',

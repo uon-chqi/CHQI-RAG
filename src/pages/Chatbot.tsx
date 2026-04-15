@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, Loader2, LogOut } from 'lucide-react';
+import { Send, Bot, Loader2, LogOut, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 
@@ -21,6 +21,7 @@ interface Message {
   sender: 'user' | 'bot';
   timestamp: Date;
   isLoading?: boolean;
+  type?: 'text' | 'reschedule_calendar' | 'reschedule_confirmed';
 }
 
 interface PatientSession {
@@ -32,6 +33,89 @@ interface PatientSession {
   facility_name: string;
 }
 
+// ── Calendar Picker Component ──
+function CalendarPicker({ onConfirm, onCancel }: { onConfirm: (date: Date) => void; onCancel: () => void }) {
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayNames = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+
+  const prevMonth = () => {
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
+    else setCurrentMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
+    else setCurrentMonth(m => m + 1);
+  };
+
+  const isDisabled = (day: number) => {
+    const d = new Date(currentYear, currentMonth, day);
+    d.setHours(0,0,0,0);
+    const t = new Date();
+    t.setHours(0,0,0,0);
+    return d <= t;
+  };
+
+  const isSelected = (day: number) =>
+    selectedDate?.getDate() === day && selectedDate?.getMonth() === currentMonth && selectedDate?.getFullYear() === currentYear;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 max-w-[300px]">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+          <Calendar className="w-4 h-4 text-amber-500" /> Select Date
+        </h3>
+      </div>
+      <div className="flex items-center justify-between mb-3">
+        <button onClick={prevMonth} className="p-1 hover:bg-gray-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
+        <span className="text-sm font-semibold text-gray-800">{monthNames[currentMonth]} {currentYear}</span>
+        <button onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded"><ChevronRight className="w-4 h-4" /></button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {dayNames.map(d => <div key={d} className="text-[10px] font-bold text-amber-600 text-center py-1">{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`e-${i}`} />)}
+        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
+          <button
+            key={day}
+            disabled={isDisabled(day)}
+            onClick={() => setSelectedDate(new Date(currentYear, currentMonth, day))}
+            className={`text-xs py-1.5 rounded-lg transition-colors
+              ${isDisabled(day) ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-amber-50 cursor-pointer'}
+              ${isSelected(day) ? 'bg-amber-500 text-white font-bold hover:bg-amber-600' : 'text-gray-700'}
+            `}
+          >
+            {day}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={onCancel}
+          className="flex-1 text-xs py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          disabled={!selectedDate}
+          onClick={() => selectedDate && onConfirm(selectedDate)}
+          className="flex-1 text-xs py-2 rounded-lg bg-amber-500 text-white font-semibold hover:bg-amber-600 disabled:opacity-40 transition-colors"
+        >
+          Confirm
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Chatbot() {
   // ── ADMIN CHECK using AuthContext ──
 
@@ -39,9 +123,15 @@ export default function Chatbot() {
   const isAdmin = user?.role === 'super_admin';
 
   // Always set a session for admin
-  const [session, setSession] = useState<PatientSession | null>(
-    isAdmin && user ? getAdminSession(user) : null
-  );
+  const [session, setSession] = useState<PatientSession | null>(() => {
+    if (isAdmin && user) return getAdminSession(user);
+    // Restore session from localStorage for regular users
+    try {
+      const saved = localStorage.getItem('chatbot_session');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
 
   useEffect(() => {
     if (isAdmin && user) {
@@ -153,13 +243,59 @@ export default function Chatbot() {
         body: JSON.stringify({ message: text, patient_id: activeSession.patient_id }),
       });
       const data = await res.json();
-      const reply = data.success ? data.data.response : 'Sorry, something went wrong. Please try again.';
-      setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id ? { ...m, text: reply, isLoading: false } : m)));
+      if (data.success && data.data.type === 'reschedule_calendar') {
+        setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id
+          ? { ...m, text: data.data.response, isLoading: false, type: 'reschedule_calendar' }
+          : m)));
+      } else {
+        const reply = data.success ? data.data.response : 'Sorry, something went wrong. Please try again.';
+        setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id ? { ...m, text: reply, isLoading: false } : m)));
+      }
     } catch {
       setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id ? { ...m, text: 'Network error. Please try again.', isLoading: false } : m)));
     } finally {
       setSending(false);
     }
+  };
+
+  // ── HANDLE RESCHEDULE DATE CONFIRM ──
+  const handleRescheduleConfirm = async (date: Date, calendarMsgId: string) => {
+    if (!activeSession) return;
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const fmtDate = `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+
+    // Replace calendar with confirmation loading
+    setMessages(prev => prev.map(m => m.id === calendarMsgId
+      ? { ...m, text: `Submitting reschedule for ${fmtDate}...`, type: 'text', isLoading: true }
+      : m));
+
+    try {
+      const res = await fetch(`${API_BASE}/api/chatbot/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patient_id: activeSession.patient_id,
+          requested_date: date.toISOString(),
+        }),
+      });
+      const data = await res.json();
+      const reply = data.success
+        ? data.data.message
+        : (data.error || 'Failed to submit reschedule request.');
+      setMessages(prev => prev.map(m => m.id === calendarMsgId
+        ? { ...m, text: reply, isLoading: false, type: 'reschedule_confirmed' }
+        : m));
+    } catch {
+      setMessages(prev => prev.map(m => m.id === calendarMsgId
+        ? { ...m, text: 'Network error. Please try again.', isLoading: false, type: 'text' }
+        : m));
+    }
+  };
+
+  const handleRescheduleCancel = (calendarMsgId: string) => {
+    setMessages(prev => prev.map(m => m.id === calendarMsgId
+      ? { ...m, text: 'Reschedule cancelled. Feel free to ask if you need anything else.', type: 'text' }
+      : m));
   };
 
   const formatTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -265,6 +401,14 @@ export default function Chatbot() {
                   <div className="flex items-center gap-2 text-gray-400">
                     <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
                   </div>
+                ) : msg.type === 'reschedule_calendar' ? (
+                  <>
+                    <p className="whitespace-pre-wrap mb-3">{msg.text}</p>
+                    <CalendarPicker
+                      onConfirm={(date) => handleRescheduleConfirm(date, msg.id)}
+                      onCancel={() => handleRescheduleCancel(msg.id)}
+                    />
+                  </>
                 ) : (
                   <>
                     <p className="whitespace-pre-wrap">{msg.text}</p>
