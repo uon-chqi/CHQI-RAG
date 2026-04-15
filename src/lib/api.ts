@@ -260,6 +260,19 @@ export const api = {
     }
     return res.json();
   },
+
+  async deletePatients(ids: string[]) {
+    const res = await fetch(`${API_BASE_URL}/api/patients/bulk-delete`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Delete failed' }));
+      throw new Error(err.error || 'Delete failed');
+    }
+    return res.json();
+  },
 };
 
 // ================================================================

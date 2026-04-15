@@ -420,6 +420,39 @@ router.get(
 );
 
 // ================================================================
+// DELETE /api/patients/bulk-delete
+// Delete multiple patients by ID (admin only)
+// ================================================================
+router.delete(
+  '/bulk-delete',
+  authenticateToken,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ success: false, error: 'ids array is required' });
+      }
+
+      // Soft-delete by setting is_active = FALSE
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+      const result = await db.query(
+        `UPDATE patients SET is_active = FALSE, updated_at = NOW() WHERE id IN (${placeholders}) AND is_active = TRUE`,
+        ids
+      );
+
+      res.json({
+        success: true,
+        deleted: result.rowCount,
+      });
+    } catch (error) {
+      console.error('Error bulk-deleting patients:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// ================================================================
 // POST /api/patients/upload-csv
 // Bulk import patients from CSV file (admin only)
 // ================================================================

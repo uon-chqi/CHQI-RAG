@@ -60,6 +60,10 @@ export default function FacilityDetail() {
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ success: boolean; summary?: any; errors?: any[]; error?: string } | null>(null);
 
+  // Selection state for bulk delete
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+
   // Stats
   const [highRisk, setHighRisk] = useState(0);
   const [mediumRisk, setMediumRisk] = useState(0);
@@ -177,6 +181,42 @@ export default function FacilityDetail() {
     return ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || '—';
   };
 
+  // Clear selection when page / filters change
+  useEffect(() => { setSelectedIds(new Set()); }, [page, search, riskFilter]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === clients.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(clients.map(c => c.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const confirmed = window.confirm(`Are you sure you want to delete ${selectedIds.size} client(s)? This action cannot be undone.`);
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await api.deletePatients(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      loadClients();
+      loadStats();
+    } catch (err: any) {
+      alert('Delete failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -287,6 +327,11 @@ export default function FacilityDetail() {
                   <>
                     <p className="font-semibold">Upload Successful!</p>
                     <p className="mt-1">Total rows: {uploadResult.summary?.totalRows} · Created: {uploadResult.summary?.created} · Updated: {uploadResult.summary?.updated} · Skipped: {uploadResult.summary?.skipped}</p>
+                    {(uploadResult.summary?.updated ?? 0) > 0 && (
+                      <p className="mt-1 text-green-700 text-xs">
+                        ℹ️ {uploadResult.summary.updated} existing client(s) were matched by CCC number and updated with the latest data — no duplicates were created.
+                      </p>
+                    )}
                     {uploadResult.errors && uploadResult.errors.length > 0 && (
                       <details className="mt-2">
                         <summary className="cursor-pointer text-yellow-700 font-medium">{uploadResult.errors.length} warnings</summary>
@@ -331,10 +376,37 @@ export default function FacilityDetail() {
 
         {/* Clients Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {/* Bulk-delete bar */}
+          {isSuperAdmin && selectedIds.size > 0 && (
+            <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 border-b border-red-200">
+              <span className="text-sm font-medium text-red-700">
+                {selectedIds.size} client{selectedIds.size > 1 ? 's' : ''} selected
+              </span>
+              <button
+                onClick={handleBulkDelete}
+                disabled={deleting}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                {deleting ? 'Deleting…' : 'Delete Selected'}
+              </button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
+                  {isSuperAdmin && (
+                    <th className="px-3 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={clients.length > 0 && selectedIds.size === clients.length}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 rounded border-gray-300 text-navy-900 focus:ring-navy-900/20 cursor-pointer"
+                        aria-label="Select all clients on this page"
+                      />
+                    </th>
+                  )}
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Client Name</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Gender</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">DOB</th>
@@ -352,7 +424,7 @@ export default function FacilityDetail() {
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={12} className="px-5 py-8 text-center text-gray-400">
+                    <td colSpan={isSuperAdmin ? 13 : 12} className="px-5 py-8 text-center text-gray-400">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                         Loading clients…
@@ -361,11 +433,22 @@ export default function FacilityDetail() {
                   </tr>
                 ) : clients.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-5 py-8 text-center text-gray-400">No clients found</td>
+                    <td colSpan={isSuperAdmin ? 13 : 12} className="px-5 py-8 text-center text-gray-400">No clients found</td>
                   </tr>
                 ) : (
                   clients.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={c.id} className={`hover:bg-gray-50 transition-colors ${selectedIds.has(c.id) ? 'bg-blue-50/60' : ''}`}>
+                      {isSuperAdmin && (
+                        <td className="px-3 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(c.id)}
+                            onChange={() => toggleSelect(c.id)}
+                            className="w-4 h-4 rounded border-gray-300 text-navy-900 focus:ring-navy-900/20 cursor-pointer"
+                            aria-label={`Select ${displayName(c)}`}
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{displayName(c)}</td>
                       <td className="px-4 py-3 text-gray-600 text-xs">{c.gender || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.date_of_birth ? new Date(c.date_of_birth).toLocaleDateString() : '—'}</td>
