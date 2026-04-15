@@ -13,7 +13,7 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'chqi-health-secret-2026';
-const TOKEN_EXPIRY = '24h';
+const TOKEN_EXPIRY = '48h';
 
 // Hard-coded super admin credentials (env-driven)
 const SUPER_ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME || 'superadmin';

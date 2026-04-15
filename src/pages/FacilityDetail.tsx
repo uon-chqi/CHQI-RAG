@@ -181,7 +181,7 @@ export default function FacilityDetail() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
           <Link to="/organisations" className="text-sm text-navy-900 hover:underline mb-2 inline-block">
             ← Back to Facilities
           </Link>
@@ -207,9 +207,9 @@ export default function FacilityDetail() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-5 text-center">
             <span className="text-3xl font-extrabold text-gray-900">{totalClients}</span>
             <p className="text-xs text-gray-500 mt-1">Total Clients</p>
@@ -234,7 +234,7 @@ export default function FacilityDetail() {
 
         {/* CSV Upload Area */}
         {showUpload && isSuperAdmin && (
-          <div ref={uploadRef} className="bg-white rounded-xl border-2 border-dashed border-emerald-300 p-6 space-y-4 transition-all">
+          <div ref={uploadRef} className="bg-white rounded-xl border-2 border-dashed border-emerald-300 p-3 sm:p-6 space-y-4 transition-all">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Upload Client Data (CSV)</h3>
               <button onClick={() => { setShowUpload(false); setUploadResult(null); }} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
@@ -245,7 +245,7 @@ export default function FacilityDetail() {
 
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors"
+              className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors"
             >
               <input
                 ref={fileInputRef}
@@ -305,26 +305,28 @@ export default function FacilityDetail() {
         )}
 
         {/* Filters */}
-        <div className="flex gap-3 bg-white rounded-xl border border-gray-200 px-4 py-3">
+        <div className="flex flex-col sm:flex-row gap-3 bg-white rounded-xl border border-gray-200 px-3 sm:px-4 py-3">
           <input
             type="text"
             placeholder="Search by name, phone, or CCC number…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-900/20"
+            className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-900/20"
           />
-          <select
-            value={riskFilter}
-            onChange={(e) => setRiskFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50"
-            aria-label="Filter by risk level"
-          >
-            <option value="">All Risk Levels</option>
-            <option value="high">High Risk</option>
-            <option value="medium">Medium Risk</option>
-            <option value="low">Low Risk</option>
-          </select>
-          <span className="text-sm text-gray-500 flex items-center whitespace-nowrap">{totalClients} clients</span>
+          <div className="flex gap-2 items-center">
+            <select
+              value={riskFilter}
+              onChange={(e) => setRiskFilter(e.target.value)}
+              className="flex-1 sm:flex-none px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50"
+              aria-label="Filter by risk level"
+            >
+              <option value="">All Risk Levels</option>
+              <option value="high">High Risk</option>
+              <option value="medium">Medium Risk</option>
+              <option value="low">Low Risk</option>
+            </select>
+            <span className="text-sm text-gray-500 whitespace-nowrap">{totalClients} clients</span>
+          </div>
         </div>
 
         {/* Clients Table */}
@@ -397,11 +399,11 @@ export default function FacilityDetail() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-200 bg-gray-50">
-              <p className="text-sm text-gray-600">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-3 sm:px-5 py-3 border-t border-gray-200 bg-gray-50">
+              <p className="text-xs sm:text-sm text-gray-600">
                 Page {page} of {totalPages} ({totalClients} clients)
               </p>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 flex-wrap justify-center">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page <= 1}
