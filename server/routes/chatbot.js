@@ -181,13 +181,21 @@ router.post('/message', async (req, res) => {
     );
     if (isTestOrAdmin) {
       try {
+        const isRescheduleAdmin = detectRescheduleIntent(message);
         const ragResult = await processQuery(message, '0700000000', 'sms');
+        const botTriggeredRescheduleAdmin = ragResult.response &&
+          ragResult.response.includes('Please select your preferred date from the calendar below');
+        const showCalendarAdmin = isRescheduleAdmin || botTriggeredRescheduleAdmin;
+
         return res.json({
           success: true,
           data: {
-            response: ragResult.response,
+            response: showCalendarAdmin
+              ? 'I can help you reschedule your appointment. Please select your preferred date from the calendar below.'
+              : ragResult.response,
             citations: ragResult.citations,
             conversationId: null,
+            type: showCalendarAdmin ? 'reschedule_calendar' : 'text',
           },
         });
       } catch (err) {
