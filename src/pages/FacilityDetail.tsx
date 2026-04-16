@@ -13,16 +13,28 @@ interface Client {
   phone: string;
   gender: string | null;
   date_of_birth: string | null;
+  email: string | null;
+  physical_address: string | null;
   ccc_number: string;
   risk_level: string;
+  enrollment_date: string | null;
   next_appointment_date: string | null;
   appointment_status: string | null;
   last_visit_date: string | null;
   last_viral_load: string | null;
+  age: number | null;
+  risk_score: number | null;
+  risk_factors: string | null;
   county: string | null;
   sub_county: string | null;
   ward: string | null;
+  city_village: string | null;
+  landmark: string | null;
+  marital_status: string | null;
+  case_manager: string | null;
+  external_patient_id: number | null;
   created_at: string;
+  updated_at: string | null;
   facility_name: string;
 }
 
@@ -279,21 +291,32 @@ export default function FacilityDetail() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Client Name</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Gender</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">DOB</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Age</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Phone</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Email</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">CCC Number</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Risk Level</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Risk Score</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Risk Factors</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Viral Load</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Appt Status</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Next Appt</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Last Visit</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Enrollment</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">County</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Sub County</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Ward</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Village</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Landmark</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Marital Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Case Manager</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Address</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={isSuperAdmin ? 13 : 12} className="px-5 py-8 text-center text-gray-400">
+                    <td colSpan={isSuperAdmin ? 25 : 24} className="px-5 py-8 text-center text-gray-400">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                         Loading clients…
@@ -302,7 +325,7 @@ export default function FacilityDetail() {
                   </tr>
                 ) : clients.length === 0 ? (
                   <tr>
-                    <td colSpan={isSuperAdmin ? 13 : 12} className="px-5 py-8 text-center text-gray-400">No clients found</td>
+                    <td colSpan={isSuperAdmin ? 25 : 24} className="px-5 py-8 text-center text-gray-400">No clients found</td>
                   </tr>
                 ) : (
                   clients.map((c) => (
@@ -321,13 +344,17 @@ export default function FacilityDetail() {
                       <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{displayName(c)}</td>
                       <td className="px-4 py-3 text-gray-600 text-xs">{c.gender || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.date_of_birth ? new Date(c.date_of_birth).toLocaleDateString() : '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{c.age ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-700 font-mono text-xs whitespace-nowrap">{c.phone || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.email || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 font-mono text-xs whitespace-nowrap">{c.ccc_number || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${riskColor(c.risk_level)}`}>
                           {c.risk_level || 'unknown'}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{c.risk_score ?? '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs max-w-[150px] truncate" title={c.risk_factors || ''}>{c.risk_factors || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 text-xs">{c.last_viral_load || '—'}</td>
                       <td className="px-4 py-3 text-xs">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${c.appointment_status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -340,8 +367,17 @@ export default function FacilityDetail() {
                       <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">
                         {c.last_visit_date ? new Date(c.last_visit_date).toLocaleDateString() : '—'}
                       </td>
+                      <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">
+                        {c.enrollment_date ? new Date(c.enrollment_date).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.county || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.sub_county || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.ward || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.city_village || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.landmark || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.marital_status || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs whitespace-nowrap">{c.case_manager || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs max-w-[150px] truncate" title={c.physical_address || ''}>{c.physical_address || '—'}</td>
                     </tr>
                   ))
                 )}

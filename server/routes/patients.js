@@ -86,18 +86,28 @@ router.get('/', async (req, res) => {
         p.gender,
         p.phone,
         p.email,
+        p.physical_address,
         p.ccc_number,
         p.risk_level,
+        p.enrollment_date,
         p.next_appointment_date,
         p.appointment_status,
         p.last_visit_date,
         p.last_viral_load,
+        p.age,
+        p.risk_score,
+        p.risk_factors,
         p.county,
         p.sub_county,
         p.ward,
-        p.enrollment_date,
+        p.city_village,
+        p.landmark,
+        p.marital_status,
+        p.case_manager,
+        p.external_patient_id,
         p.is_active as status,
-        p.created_at
+        p.created_at,
+        p.updated_at
       FROM patients p
       LEFT JOIN facilities f ON p.facility_id = f.id
       ${whereClause}
@@ -498,6 +508,34 @@ router.post(
               [facilityName]
             );
             if (facResult.rows.length > 0) facilityId = facResult.rows[0].id;
+          }
+
+          // Auto-create facility if it doesn't exist and we have enough info
+          if (!facilityId && (facilityMfl || facilityName)) {
+            const countyName = String(row.county || '').trim();
+            let countyId = null;
+            if (countyName) {
+              const countyResult = await client.query(
+                'SELECT id FROM counties WHERE LOWER(name) = LOWER($1) AND is_active = TRUE LIMIT 1',
+                [countyName]
+              );
+              if (countyResult.rows.length > 0) {
+                countyId = countyResult.rows[0].id;
+              } else {
+                // Auto-create the county too
+                const newCounty = await client.query(
+                  `INSERT INTO counties (name, code, is_active) VALUES ($1, $2, TRUE) RETURNING id`,
+                  [countyName, countyName.substring(0, 3).toUpperCase()]
+                );
+                countyId = newCounty.rows[0].id;
+              }
+            }
+            const newFac = await client.query(
+              `INSERT INTO facilities (name, code, county_id, is_active, operational_status)
+               VALUES ($1, $2, $3, TRUE, 'operational') RETURNING id`,
+              [facilityName || facilityMfl, facilityMfl || facilityName, countyId]
+            );
+            facilityId = newFac.rows[0].id;
           }
 
           // --- Parse patient name ---
