@@ -591,6 +591,7 @@ router.post(
                 email = COALESCE(NULLIF($25, ''), email),
                 physical_address = COALESCE(NULLIF($26, ''), physical_address),
                 enrollment_date = COALESCE($27::DATE, enrollment_date),
+                is_active = TRUE,
                 updated_at = NOW()
               WHERE ccc_number = $28
             `, [
@@ -814,6 +815,7 @@ router.post(
                 email = COALESCE(NULLIF($25, ''), email),
                 physical_address = COALESCE(NULLIF($26, ''), physical_address),
                 enrollment_date = COALESCE($27::DATE, enrollment_date),
+                is_active = TRUE,
                 updated_at = NOW()
               WHERE ccc_number = $28
             `, [

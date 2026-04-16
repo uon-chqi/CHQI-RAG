@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
@@ -51,14 +51,6 @@ export default function FacilityDetail() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalClients, setTotalClients] = useState(0);
-
-  // CSV upload state
-  const uploadRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showUpload, setShowUpload] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<{ success: boolean; summary?: any; errors?: any[]; error?: string } | null>(null);
 
   // Selection state for bulk delete
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -131,43 +123,6 @@ export default function FacilityDetail() {
   useEffect(() => { loadClients(); }, [loadClients]);
   useEffect(() => { setPage(1); }, [search, riskFilter]);
 
-  // Scroll to upload area when toggled
-  const handleAddClients = () => {
-    setShowUpload(true);
-    setUploadResult(null);
-    setSelectedFile(null);
-    setTimeout(() => uploadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setUploadResult(null);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!selectedFile) return;
-    setUploading(true);
-    setUploadResult(null);
-    try {
-      const result = await api.uploadPatientsCSV(selectedFile);
-      setUploadResult(result);
-      if (result.success) {
-        setSelectedFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        // Reload data
-        loadClients();
-        loadStats();
-      }
-    } catch (err: any) {
-      setUploadResult({ success: false, error: err.message || 'Upload failed' });
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const riskColor = (level: string) => {
     const l = (level || '').toLowerCase();
     if (l === 'high') return 'bg-red-100 text-red-700 ring-1 ring-red-600/20';
@@ -234,15 +189,6 @@ export default function FacilityDetail() {
                 {facility?.email && <span className="text-gray-400">{facility.email}</span>}
               </div>
             </div>
-            {isSuperAdmin && (
-              <button
-                onClick={handleAddClients}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm whitespace-nowrap"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                Add Clients
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -271,83 +217,6 @@ export default function FacilityDetail() {
             <p className="text-xs text-gray-500 mt-1">Flagged Clients</p>
           </Link>
         </div>
-
-        {/* CSV Upload Area */}
-        {showUpload && isSuperAdmin && (
-          <div ref={uploadRef} className="bg-white rounded-xl border-2 border-dashed border-emerald-300 p-3 sm:p-6 space-y-4 transition-all">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Upload Client Data (CSV)</h3>
-              <button onClick={() => { setShowUpload(false); setUploadResult(null); }} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
-            </div>
-            <p className="text-sm text-gray-500">
-              Upload a CSV file with client data. Columns should include: patient_id, patient_name, gender, dob, ccc_number, phone_number, risk_classification, appointment_date, facility_mfl, etc.
-            </p>
-
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleFileSelect}
-                className="hidden"
-                aria-label="Select CSV file"
-              />
-              <svg className="w-10 h-10 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              {selectedFile ? (
-                <p className="text-sm font-medium text-emerald-700">{selectedFile.name} <span className="text-gray-400">({(selectedFile.size / 1024).toFixed(1)} KB)</span></p>
-              ) : (
-                <p className="text-sm text-gray-500">Click to select a CSV file, or drag and drop</p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSave}
-                disabled={!selectedFile || uploading}
-                className="px-6 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {uploading ? 'Uploading...' : 'Save'}
-              </button>
-              {selectedFile && !uploading && (
-                <button onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-sm text-gray-500 hover:text-gray-700">
-                  Clear
-                </button>
-              )}
-            </div>
-
-            {/* Upload Result */}
-            {uploadResult && (
-              <div className={`rounded-lg border p-4 text-sm ${uploadResult.success ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
-                {uploadResult.success ? (
-                  <>
-                    <p className="font-semibold">Upload Successful!</p>
-                    <p className="mt-1">Total rows: {uploadResult.summary?.totalRows} · Created: {uploadResult.summary?.created} · Updated: {uploadResult.summary?.updated} · Skipped: {uploadResult.summary?.skipped}</p>
-                    {(uploadResult.summary?.updated ?? 0) > 0 && (
-                      <p className="mt-1 text-green-700 text-xs">
-                        ℹ️ {uploadResult.summary.updated} existing client(s) were matched by CCC number and updated with the latest data — no duplicates were created.
-                      </p>
-                    )}
-                    {uploadResult.errors && uploadResult.errors.length > 0 && (
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-yellow-700 font-medium">{uploadResult.errors.length} warnings</summary>
-                        <ul className="mt-1 list-disc list-inside text-xs space-y-0.5">
-                          {uploadResult.errors.map((e: any, i: number) => <li key={i}>Row {e.row}: {e.reason}</li>)}
-                        </ul>
-                      </details>
-                    )}
-                  </>
-                ) : (
-                  <p className="font-semibold">Upload Failed: {uploadResult.error}</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 bg-white rounded-xl border border-gray-200 px-3 sm:px-4 py-3">
