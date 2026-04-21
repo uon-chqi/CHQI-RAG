@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import swaggerUi from 'swagger-ui-express';
 import webhookRoutes from './routes/webhooks.js';
 import ragRoutes from './routes/rag.js';
 import conversationRoutes from './routes/conversations.js';
@@ -24,6 +25,7 @@ import flaggedRoutes from './routes/flagged.js';
 import { initDailySync } from './services/dailySync.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import swaggerSpec from './config/swagger.js';
 
 dotenv.config();
 
@@ -55,6 +57,13 @@ app.use('/api/county', countyRoutes);
 app.use('/api/reschedule-requests', rescheduleRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/flagged', flaggedRoutes);
+
+app.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
