@@ -9,6 +9,7 @@ import { parse } from 'csv-parse/sync';
 import PatientDataService from '../services/patientData.js';
 import AccessControlService from '../services/accessControl.js';
 import db from '../config/database.js';
+import { authenticateToken } from '../middleware/auth.js';
 import {
   requireFacilityAccess,
   requirePatientAccess,
@@ -370,7 +371,7 @@ router.post(
  * GET /api/patients/search/ccc/:cccNumber
  * Get patient by CCC number
  */
-router.get('/search/ccc/:cccNumber', async (req, res) => {
+router.get('/search/ccc/:cccNumber', authenticateToken, async (req, res) => {
   try {
     const patient = await PatientDataService.getPatientByCCC(
       req.params.cccNumber,
