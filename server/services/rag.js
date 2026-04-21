@@ -19,17 +19,12 @@ export const processQuery = async (message, phoneNumber, channel) => {
       console.log(`   Preview: ${relevantChunks[0].metadata?.text?.substring(0, 100)}...`);
     }
 
-    if (relevantChunks.length === 0) {
-      return {
-        response: "I don't have enough medical information to answer that question. Please consult a healthcare professional.",
-        citations: [],
-        responseTime: Date.now() - startTime,
-      };
-    }
-
-    const context = relevantChunks
-      .map((chunk, idx) => `[${idx + 1}] ${chunk.metadata.text} (Source: ${chunk.metadata.documentTitle || 'Medical Document'})`)
-      .join('\n\n');
+    // Build context from relevant chunks (may be empty for greetings / general questions)
+    const context = relevantChunks.length > 0
+      ? relevantChunks
+          .map((chunk, idx) => `[${idx + 1}] ${chunk.metadata.text} (Source: ${chunk.metadata.documentTitle || 'Medical Document'})`)
+          .join('\n\n')
+      : '';
 
     const citations = relevantChunks.map((chunk, idx) => ({
       index: idx + 1,

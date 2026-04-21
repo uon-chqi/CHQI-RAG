@@ -1,7 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, Loader2, LogOut } from 'lucide-react';
+import { Send, Bot, Loader2, LogOut, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
+
+// Helper to create a session for admin
+const getAdminSession = (user: any) => user ? {
+  patient_id: `admin-${user.id}`,
+  first_name: user.first_name || user.name || 'Admin',
+  last_name: user.last_name || '',
+  phone: 'N/A',
+  ccc_number: 'ADMIN-PORTAL',
+  facility_name: 'Admin Console',
+} : null;
 
 interface Message {
   id: string;
@@ -9,6 +21,7 @@ interface Message {
   sender: 'user' | 'bot';
   timestamp: Date;
   isLoading?: boolean;
+  type?: 'text' | 'reschedule_calendar' | 'reschedule_confirmed';
 }
 
 interface PatientSession {
@@ -20,9 +33,111 @@ interface PatientSession {
   facility_name: string;
 }
 
+// ── Calendar Picker Component ──
+function CalendarPicker({ onConfirm, onCancel }: { onConfirm: (date: Date) => void; onCancel: () => void }) {
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayNames = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+
+  const prevMonth = () => {
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
+    else setCurrentMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
+    else setCurrentMonth(m => m + 1);
+  };
+
+  const isDisabled = (day: number) => {
+    const d = new Date(currentYear, currentMonth, day);
+    d.setHours(0,0,0,0);
+    const t = new Date();
+    t.setHours(0,0,0,0);
+    return d <= t;
+  };
+
+  const isSelected = (day: number) =>
+    selectedDate?.getDate() === day && selectedDate?.getMonth() === currentMonth && selectedDate?.getFullYear() === currentYear;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 max-w-[300px]">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+          <Calendar className="w-4 h-4 text-amber-500" /> Select Date
+        </h3>
+      </div>
+      <div className="flex items-center justify-between mb-3">
+        <button onClick={prevMonth} className="p-1 hover:bg-gray-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
+        <span className="text-sm font-semibold text-gray-800">{monthNames[currentMonth]} {currentYear}</span>
+        <button onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded"><ChevronRight className="w-4 h-4" /></button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {dayNames.map(d => <div key={d} className="text-[10px] font-bold text-amber-600 text-center py-1">{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`e-${i}`} />)}
+        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
+          <button
+            key={day}
+            disabled={isDisabled(day)}
+            onClick={() => setSelectedDate(new Date(currentYear, currentMonth, day))}
+            className={`text-xs py-1.5 rounded-lg transition-colors
+              ${isDisabled(day) ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-amber-50 cursor-pointer'}
+              ${isSelected(day) ? 'bg-amber-500 text-white font-bold hover:bg-amber-600' : 'text-gray-700'}
+            `}
+          >
+            {day}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={onCancel}
+          className="flex-1 text-xs py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          disabled={!selectedDate}
+          onClick={() => selectedDate && onConfirm(selectedDate)}
+          className="flex-1 text-xs py-2 rounded-lg bg-amber-500 text-white font-semibold hover:bg-amber-600 disabled:opacity-40 transition-colors"
+        >
+          Confirm
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Chatbot() {
-  // For admin: always start with no session (never load from localStorage)
-  const [session, setSession] = useState<PatientSession | null>(null);
+  // ── ADMIN CHECK using AuthContext ──
+
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'super_admin';
+
+  // Always set a session for admin
+  const [session, setSession] = useState<PatientSession | null>(() => {
+    if (isAdmin && user) return getAdminSession(user);
+    // Restore session from localStorage for regular users
+    try {
+      const saved = localStorage.getItem('chatbot_session');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+
+  useEffect(() => {
+    if (isAdmin && user) {
+      setSession(getAdminSession(user));
+    }
+  }, [isAdmin, user]);
 
   // ── LOGIN STATE ──
   const [phone, setPhone] = useState('');
@@ -40,10 +155,13 @@ export default function Chatbot() {
   const scrollToBottom = () => endRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(scrollToBottom, [messages]);
 
-  // Load conversation history when session exists
+  // ── ACTIVE SESSION (for both admin and regular users) ──
+  const activeSession = session || (isAdmin && user ? getAdminSession(user) : null);
+
+  // Load conversation history when session exists (only for non-admin)
   useEffect(() => {
-    if (session) loadHistory();
-  }, [session?.patient_id]);
+    if (session && !isAdmin) loadHistory();
+  }, [session?.patient_id, isAdmin]);
 
   // ── LOGIN ──
   const handleLogin = async (e: React.FormEvent) => {
@@ -74,14 +192,18 @@ export default function Chatbot() {
   };
 
   const handleLogout = () => {
-    setSession(null);
+    setSession(isAdmin && user ? getAdminSession(user) : null);
     setMessages([]);
-    // No localStorage for admin
+    // For admins, logout is handled by AuthContext/Auth system
+    // For regular users, clear localStorage
+    if (!isAdmin) {
+      localStorage.removeItem('chatbot_session');
+    }
   };
 
   // ── LOAD HISTORY ──
   const loadHistory = async () => {
-    if (!session) return;
+    if (!session || isAdmin) return;
     setLoadingHistory(true);
     try {
       const res = await fetch(`${API_BASE}/api/chatbot/history/${session.patient_id}`);
@@ -105,7 +227,7 @@ export default function Chatbot() {
 
   // ── SEND MESSAGE ──
   const handleSend = async () => {
-    if (!input.trim() || sending || !session) return;
+    if (!input.trim() || sending || !activeSession) return;
     const text = input.trim();
     const userMsg: Message = { id: `u-${Date.now()}`, text, sender: 'user', timestamp: new Date() };
     const loadingMsg: Message = { id: `b-${Date.now()}`, text: '', sender: 'bot', timestamp: new Date(), isLoading: true };
@@ -118,11 +240,17 @@ export default function Chatbot() {
       const res = await fetch(`${API_BASE}/api/chatbot/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, patient_id: session.patient_id }),
+        body: JSON.stringify({ message: text, patient_id: activeSession.patient_id }),
       });
       const data = await res.json();
-      const reply = data.success ? data.data.response : 'Sorry, something went wrong. Please try again.';
-      setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id ? { ...m, text: reply, isLoading: false } : m)));
+      if (data.success && data.data.type === 'reschedule_calendar') {
+        setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id
+          ? { ...m, text: data.data.response, isLoading: false, type: 'reschedule_calendar' }
+          : m)));
+      } else {
+        const reply = data.success ? data.data.response : 'Sorry, something went wrong. Please try again.';
+        setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id ? { ...m, text: reply, isLoading: false } : m)));
+      }
     } catch {
       setMessages((prev) => prev.map((m) => (m.id === loadingMsg.id ? { ...m, text: 'Network error. Please try again.', isLoading: false } : m)));
     } finally {
@@ -130,38 +258,103 @@ export default function Chatbot() {
     }
   };
 
+  // ── HANDLE RESCHEDULE DATE CONFIRM ──
+  const handleRescheduleConfirm = async (date: Date, calendarMsgId: string) => {
+    if (!activeSession) return;
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const fmtDate = `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+
+    // Replace calendar with confirmation loading
+    setMessages(prev => prev.map(m => m.id === calendarMsgId
+      ? { ...m, text: `Submitting reschedule for ${fmtDate}...`, type: 'text', isLoading: true }
+      : m));
+
+    try {
+      const res = await fetch(`${API_BASE}/api/chatbot/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patient_id: activeSession.patient_id,
+          requested_date: date.toISOString(),
+        }),
+      });
+      const data = await res.json();
+      const reply = data.success
+        ? data.data.message
+        : (data.error || 'Failed to submit reschedule request.');
+      setMessages(prev => prev.map(m => m.id === calendarMsgId
+        ? { ...m, text: reply, isLoading: false, type: 'reschedule_confirmed' }
+        : m));
+    } catch {
+      setMessages(prev => prev.map(m => m.id === calendarMsgId
+        ? { ...m, text: 'Network error. Please try again.', isLoading: false, type: 'text' }
+        : m));
+    }
+  };
+
+  const handleRescheduleCancel = (calendarMsgId: string) => {
+    setMessages(prev => prev.map(m => m.id === calendarMsgId
+      ? { ...m, text: 'Reschedule cancelled. Feel free to ask if you need anything else.', type: 'text' }
+      : m));
+  };
+
   const formatTime = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  // ── LOGIN SCREEN ──
-  // For admin: always show a clean test chat interface (no session mixing)
-  if (!session) {
+  // ── LOGIN SCREEN (for non-admin users only) ──
+  if (!session && !isAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-700 mb-4">
-            <Bot className="w-8 h-8 text-white" />
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-3xl shadow-lg p-8">
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Health Assistant</h1>
+              <p className="text-gray-600 text-sm">Login to access your health records</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="0700000000"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  disabled={loggingIn}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">CCC Number</label>
+                <input
+                  type="text"
+                  value={ccc}
+                  onChange={(e) => setCcc(e.target.value)}
+                  placeholder="00000000000"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  disabled={loggingIn}
+                />
+              </div>
+
+              {loginError && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg">{loginError}</div>}
+
+              <button
+                type="submit"
+                disabled={loggingIn}
+                className="w-full bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors"
+              >
+                {loggingIn ? 'Logging in...' : 'Login'}
+              </button>
+            </form>
           </div>
-          <h1 className="text-2xl font-bold text-navy-900 mb-2">CHQI Health Assistant (Admin Test)</h1>
-          <p className="text-sm text-gray-500 mb-4">This is a test chat interface for admin. No login required. No client sessions will ever appear here.</p>
-          <button
-            className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5 rounded-lg transition-colors"
-            onClick={() => setSession({
-              patient_id: 'test-patient',
-              first_name: 'Test',
-              last_name: 'Patient',
-              phone: '0700000000',
-              ccc_number: 'CCC-TEST-001',
-              facility_name: 'Test Facility',
-            })}
-          >
-            Start Test Chat
-          </button>
         </div>
       </div>
     );
   }
 
   // ── CHAT SCREEN ──
+  if (!activeSession) return null;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Chat header */}
@@ -171,9 +364,9 @@ export default function Chatbot() {
             <Bot className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold">CHQI Health Assistant</h2>
+            <h2 className="text-sm font-semibold">Health Assistant</h2>
             <p className="text-[11px] text-blue-200">
-              {session.first_name} {session.last_name} &middot; {session.facility_name}
+              {activeSession.first_name} {activeSession.last_name} {!isAdmin && `• ${activeSession.facility_name}`}
             </p>
           </div>
         </div>
@@ -191,7 +384,7 @@ export default function Chatbot() {
         ) : messages.length === 0 ? (
           <div className="text-center text-gray-400 mt-20">
             <Bot className="w-10 h-10 mx-auto mb-3 text-blue-400" />
-            <p className="text-sm">Hello {session.first_name}! How can I help you today?</p>
+            <p className="text-sm">Hello {activeSession.first_name}! How can I help you today?</p>
             <p className="text-xs mt-1">Ask me anything about your health.</p>
           </div>
         ) : (
@@ -208,6 +401,14 @@ export default function Chatbot() {
                   <div className="flex items-center gap-2 text-gray-400">
                     <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
                   </div>
+                ) : msg.type === 'reschedule_calendar' ? (
+                  <>
+                    <p className="whitespace-pre-wrap mb-3">{msg.text}</p>
+                    <CalendarPicker
+                      onConfirm={(date) => handleRescheduleConfirm(date, msg.id)}
+                      onCancel={() => handleRescheduleCancel(msg.id)}
+                    />
+                  </>
                 ) : (
                   <>
                     <p className="whitespace-pre-wrap">{msg.text}</p>

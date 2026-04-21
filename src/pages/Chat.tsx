@@ -259,7 +259,7 @@ export default function Chat() {
                                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.15s' }}></div>
                                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
                                   </div>
-                                  <span className="text-sm text-gray-600">Thinking...</span>
+                                  <span className="text-sm text-green-600">typing...</span>
                                 </div>
                               ) : (
                                 <>
@@ -311,7 +311,7 @@ export default function Chat() {
                               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.15s' }}></div>
                               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
                             </div>
-                            <span className="text-sm text-gray-600">Thinking...</span>
+                            <span className="text-sm text-green-600">typing...</span>
                           </div>
                         ) : (
                           <>

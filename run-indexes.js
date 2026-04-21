@@ -1,0 +1,48 @@
+import pkg from 'pg';
+import dotenv from 'dotenv';
+dotenv.config();
+const { Pool } = pkg;
+
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  ssl: { rejectUnauthorized: false }
+});
+
+async function run() {
+  const client = await pool.connect();
+  try {
+    // First ensure the missing column exists
+    await client.query('ALTER TABLE patients ADD COLUMN IF NOT EXISTS external_patient_id INTEGER');
+    console.log('Ensured external_patient_id column exists');
+
+    const stmts = [
+      'CREATE INDEX IF NOT EXISTS idx_patients_county ON patients(county)',
+      'CREATE INDEX IF NOT EXISTS idx_patients_sub_county ON patients(sub_county)',
+      'CREATE INDEX IF NOT EXISTS idx_patients_appointment_status ON patients(appointment_status)',
+      'CREATE INDEX IF NOT EXISTS idx_patients_external_id ON patients(external_patient_id)',
+      'CREATE INDEX IF NOT EXISTS idx_patients_last_visit ON patients(last_visit_date)',
+    ];
+    for (const s of stmts) {
+      console.log('Running:', s.substring(0, 70) + '...');
+      await client.query(s);
+      console.log('  OK');
+    }
+
+    const res = await client.query(
+      `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'patients' ORDER BY ordinal_position`
+    );
+    console.log('\nPatients table columns:');
+    res.rows.forEach(r => console.log(`  ${r.column_name} (${r.data_type})`));
+    console.log(`\nTotal: ${res.rows.length} columns`);
+    console.log('Migration complete!');
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+run();

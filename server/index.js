@@ -35,7 +35,32 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT) || 5000;
 
-app.use(cors());
+// --- CORS: Allow frontend and backend domains ---
+const allowedOrigins = [
+  'http://sms-portal.chqi.org',
+  'https://sms-portal.chqi.org',
+  'http://api-sms-portal.chqi.org',
+  'https://api-sms-portal.chqi.org',
+  'https://providerdashboard-production.up.railway.app',
+  'http://localhost:5173', // Vite dev server
+  'http://localhost:3000', // React dev server
+  'http://192.168.0.106',
+  'https://192.168.0.106',
+];
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -71,13 +96,22 @@ app.get('/api/health', (req, res) => {
 
 app.use(errorHandler);
 
-// ── Serve frontend in production ────────────────────────────
+// ── Serve frontend in production ONLY for frontend domain ──
 const distPath = path.join(__dirname, '..', 'dist');
-app.use(express.static(distPath));
-
-// SPA fallback: any non-API route serves index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+app.use((req, res, next) => {
+  if (req.hostname === 'sms-portal.chqi.org') {
+    express.static(distPath)(req, res, (err) => {
+      if (err) return next(err);
+      // If not a static file and not an API route, serve index.html for SPA routing
+      if (!req.path.startsWith('/api/')) {
+        res.sendFile(path.join(distPath, 'index.html'));
+      } else {
+        next();
+      }
+    });
+  } else {
+    next();
+  }
 });
 
 // Function to start server with retry logic

@@ -31,8 +31,7 @@ export default function Login() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-12">
       {/* Brand */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900">CHQI Health</h1>
-        <p className="text-gray-500 text-sm mt-1">Centre for Healthcare Quality and Innovation</p>
+        <h1 className="text-3xl font-extrabold text-gray-900">SMS-PORTAL</h1>
       </div>
 
       {/* Card */}

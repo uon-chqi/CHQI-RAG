@@ -89,7 +89,7 @@ export default function Layout() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col overflow-x-hidden">
       {/* ── Top Navigation Bar ─────────────────────────────── */}
       <header className="sticky top-0 z-50 backdrop-blur-md border-b border-white/10 shadow-lg" style={{ backgroundColor: 'rgba(10,27,58,0.97)' }}>
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -98,7 +98,7 @@ export default function Layout() {
             {/* Brand */}
             <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
               <span className="text-white font-bold text-lg tracking-tight group-hover:text-blue-200 transition-colors">
-                CHQI
+                SMS-PORTAL
               </span>
             </Link>
 
@@ -238,9 +238,9 @@ export default function Layout() {
         <div className="flex items-center justify-between px-5 h-16 border-b border-white/10 flex-shrink-0">
           <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-cyan-300 flex items-center justify-center text-navy-900 font-black text-sm shadow-md">
-              C
+              SMS-PORTAL
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">CHQI</span>
+            <span className="text-white font-bold text-lg tracking-tight">SMS-PORTAL</span>
           </Link>
           <button
             onClick={() => setMobileOpen(false)}

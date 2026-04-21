@@ -242,6 +242,37 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch facilities');
     return res.json();
   },
+
+  async uploadPatientsCSV(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('chqi_token') : null;
+    const res = await fetch(`${API_BASE_URL}/api/patients/upload-csv`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(err.error || 'Upload failed');
+    }
+    return res.json();
+  },
+
+  async deletePatients(ids: string[]) {
+    const res = await fetch(`${API_BASE_URL}/api/patients/bulk-delete`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Delete failed' }));
+      throw new Error(err.error || 'Delete failed');
+    }
+    return res.json();
+  },
 };
 
 // ================================================================

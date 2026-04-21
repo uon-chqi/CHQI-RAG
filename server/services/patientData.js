@@ -21,12 +21,14 @@ class PatientDataService {
         throw new Error('You do not have access to this facility');
       }
 
-      const {
+
+      let {
         firstName,
         lastName,
         dateOfBirth,
         gender,
         phone,
+        ccc_number,
         email,
         nationalId,
         bloodGroup,
@@ -35,6 +37,18 @@ class PatientDataService {
         emergencyContactName,
         emergencyContactPhone
       } = patientData;
+
+      // Normalize phone to 07XXXXXXXX format before saving
+      if (phone) {
+        phone = phone.replace(/\s+/g, '');
+        if (phone.startsWith('+2547')) {
+          phone = '0' + phone.slice(4);
+        }
+      }
+      // Normalize ccc_number to remove dashes and dots
+      if (ccc_number) {
+        ccc_number = ccc_number.replace(/[-.]/g, '');
+      }
 
       // Create patient
       const patientQuery = `

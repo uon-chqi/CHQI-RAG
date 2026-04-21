@@ -1,7 +1,24 @@
 
 import express from 'express';
 import db from '../config/database.js';
+import { pool } from '../config/database.js';
 import { processQuery } from '../services/rag.js';
+
+// ── Reschedule intent detection keywords ──
+const RESCHEDULE_KEYWORDS = [
+  'reschedule', 'reschedule appointment', 'change appointment',
+  'move appointment', 'different date', 'another date',
+  'change my date', 'change date', 'new appointment date',
+  'postpone', 'postpone appointment', 'move my appointment',
+  'cancel and rebook', 'rebook', 'shift appointment',
+  'come on a different day', 'can i come another day',
+  'i want to change my appointment', 'i need to reschedule',
+];
+
+function detectRescheduleIntent(message) {
+  const lower = message.toLowerCase();
+  return RESCHEDULE_KEYWORDS.some(kw => lower.includes(kw));
+}
 
 const router = express.Router();
 
@@ -94,14 +111,17 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Phone number and CCC number are required' });
     }
 
-    // Look up patient by CCC number
+    // Normalize CCC number to remove dashes and dots
+    const normalizedCCC = ccc_number.replace(/[-.]/g, '');
+
+    // Look up patient by normalized CCC number
     const result = await db.query(`
       SELECT p.id, p.first_name, p.last_name, p.phone, p.ccc_number, p.risk_level,
              p.facility_id, f.name AS facility_name, f.code AS facility_code
       FROM patients p
       LEFT JOIN facilities f ON p.facility_id = f.id
-      WHERE p.ccc_number = $1
-    `, [ccc_number.trim()]);
+      WHERE REPLACE(REPLACE(p.ccc_number, '-', ''), '.', '') = $1
+    `, [normalizedCCC.trim()]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ success: false, error: 'Invalid CCC number. Please check and try again.' });
@@ -110,8 +130,15 @@ router.post('/login', async (req, res) => {
     const patient = result.rows[0];
 
     // Verify phone number matches
-    const normalise = (p) => p.replace(/\s+/g, '').replace(/^0/, '+254');
-    if (normalise(patient.phone) !== normalise(phone.trim())) {
+    // Normalize phone to 07XXXXXXXX format
+    const normalizePhone = (p) => {
+      let phone = p.replace(/\s+/g, '');
+      if (phone.startsWith('+2547')) {
+        return '0' + phone.slice(4);
+      }
+      return phone;
+    };
+    if (normalizePhone(patient.phone) !== normalizePhone(phone.trim())) {
       return res.status(401).json({ success: false, error: 'Phone number does not match the CCC number on file.' });
     }
 
@@ -138,24 +165,43 @@ router.post('/login', async (req, res) => {
  * Send a message to the RAG chatbot. Flags harmful content silently.
  */
 router.post('/message', async (req, res) => {
+
   try {
     const { message, patient_id } = req.body;
+    console.log('Received patient_id:', patient_id);
 
     if (!message || !patient_id) {
       return res.status(400).json({ success: false, error: 'Message and patient_id are required' });
     }
 
-    // Special case: admin test chat (no DB lookup, no storage)
-    if (patient_id === 'test-patient') {
-      const ragResult = await processQuery(message, '0700000000', 'sms');
-      return res.json({
-        success: true,
-        data: {
-          response: ragResult.response,
-          citations: ragResult.citations,
-          conversationId: null,
-        },
-      });
+    // Special case: admin or test chat (no DB lookup, no storage)
+    const isTestOrAdmin = (
+      typeof patient_id === 'string' &&
+      (patient_id === 'test-patient' || patient_id.startsWith('admin-'))
+    );
+    if (isTestOrAdmin) {
+      try {
+        const isRescheduleAdmin = detectRescheduleIntent(message);
+        const ragResult = await processQuery(message, '0700000000', 'sms');
+        const botTriggeredRescheduleAdmin = ragResult.response &&
+          ragResult.response.includes('Please select your preferred date from the calendar below');
+        const showCalendarAdmin = isRescheduleAdmin || botTriggeredRescheduleAdmin;
+
+        return res.json({
+          success: true,
+          data: {
+            response: showCalendarAdmin
+              ? 'I can help you reschedule your appointment. Please select your preferred date from the calendar below.'
+              : ragResult.response,
+            citations: ragResult.citations,
+            conversationId: null,
+            type: showCalendarAdmin ? 'reschedule_calendar' : 'text',
+          },
+        });
+      } catch (err) {
+        console.error('Error in admin/test-patient RAG pipeline:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Failed to process admin/test message' });
+      }
     }
 
     // Fetch patient details for phone & facility
@@ -167,8 +213,15 @@ router.post('/message', async (req, res) => {
     }
     const patient = patientRes.rows[0];
 
+    // ── Detect reschedule intent ──
+    const isReschedule = detectRescheduleIntent(message);
+
     // Process through RAG pipeline
     const ragResult = await processQuery(message, patient.phone, 'sms');
+
+    // If the bot response also contains the reschedule trigger phrase, flag it
+    const botTriggeredReschedule = ragResult.response &&
+      ragResult.response.includes('Please select your preferred date from the calendar below');
 
     // ── Silent mental health flagging ──
     const flagCheck = detectFlaggedWords(message);
@@ -192,17 +245,123 @@ router.post('/message', async (req, res) => {
       }
     }
 
+    const showCalendar = isReschedule || botTriggeredReschedule;
+
     res.json({
       success: true,
       data: {
-        response: ragResult.response,
+        response: showCalendar
+          ? 'I can help you reschedule your appointment. Please select your preferred date from the calendar below.'
+          : ragResult.response,
         citations: ragResult.citations,
         conversationId: ragResult.conversationId,
+        type: showCalendar ? 'reschedule_calendar' : 'text',
       },
     });
   } catch (error) {
     console.error('Chatbot message error:', error);
-    res.status(500).json({ success: false, error: 'Failed to process message' });
+    res.status(500).json({ success: false, error: error.message || 'Failed to process message' });
+  }
+});
+
+/**
+ * POST /api/chatbot/reschedule
+ * Submit a reschedule request from the chatbot calendar widget.
+ * Body: { patient_id, requested_date, reason? }
+ */
+router.post('/reschedule', async (req, res) => {
+  try {
+    const { patient_id, requested_date, reason } = req.body;
+
+    if (!patient_id || !requested_date) {
+      return res.status(400).json({ success: false, error: 'patient_id and requested_date are required' });
+    }
+
+    // Validate date is in the future
+    const parsed = new Date(requested_date);
+    if (isNaN(parsed.getTime()) || parsed <= new Date()) {
+      return res.status(400).json({ success: false, error: 'Please select a future date' });
+    }
+
+    // Fetch patient details
+    const patientRes = await db.query(
+      'SELECT id, first_name, last_name, phone, facility_id FROM patients WHERE id = $1',
+      [patient_id]
+    );
+    if (patientRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Patient not found' });
+    }
+    const patient = patientRes.rows[0];
+    const patientName = `${patient.first_name || ''} ${patient.last_name || ''}`.trim();
+
+    // Find the most recent appointment
+    let appointmentId = null;
+    let originalDate = null;
+    try {
+      const apptRes = await pool.query(
+        `SELECT id, appointment_date FROM appointments
+         WHERE patient_id = $1 AND status IN ('missed','no_show','scheduled')
+         ORDER BY appointment_date DESC LIMIT 1`,
+        [patient_id]
+      );
+      if (apptRes.rows.length > 0) {
+        appointmentId = apptRes.rows[0].id;
+        originalDate = apptRes.rows[0].appointment_date;
+      }
+    } catch (apptErr) {
+      console.error('Error fetching appointment:', apptErr);
+    }
+
+    // Format the date for display
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const fmtDate = `${parsed.getDate()} ${monthNames[parsed.getMonth()]} ${parsed.getFullYear()}`;
+
+    // Insert reschedule request
+    const result = await pool.query(
+      `INSERT INTO reschedule_requests
+       (patient_id, facility_id, appointment_id, phone_number, patient_name,
+        original_appointment_date, requested_date, requested_date_raw, reason, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+       RETURNING id`,
+      [
+        patient.id,
+        patient.facility_id,
+        appointmentId,
+        patient.phone,
+        patientName,
+        originalDate,
+        parsed.toISOString(),
+        fmtDate,
+        reason || 'Requested via chatbot',
+      ]
+    );
+
+    // Save as a conversation so it appears in chat history
+    try {
+      await db.query(
+        `INSERT INTO conversations (patient_phone, message, response, channel)
+         VALUES ($1, $2, $3, 'chatbot')`,
+        [
+          patient.phone,
+          `I would like to reschedule my appointment to ${fmtDate}`,
+          `Your reschedule request for ${fmtDate} has been submitted. You will be notified once a clinician reviews it.`,
+        ]
+      );
+    } catch (convErr) {
+      console.error('Error saving reschedule conversation:', convErr);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        reschedule_id: result.rows[0].id,
+        requested_date: fmtDate,
+        message: `Your reschedule request for ${fmtDate} has been submitted. You will be notified once a clinician reviews it.`,
+      },
+    });
+  } catch (error) {
+    console.error('Chatbot reschedule error:', error);
+    res.status(500).json({ success: false, error: 'Failed to submit reschedule request' });
   }
 });
 

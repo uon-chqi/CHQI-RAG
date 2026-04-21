@@ -1,5 +1,5 @@
-﻿import { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, AlertCircle, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, Filter, AlertCircle, Building2, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
@@ -45,6 +45,30 @@ export default function PatientManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState({ total: 0, byRiskLevel: { HIGH: 0, MEDIUM: 0, LOW: 0 } });
+
+  // CSV upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{ success: boolean; summary?: any; errors?: any[]; error?: string } | null>(null);
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadResult(null);
+    try {
+      const result = await api.uploadPatientsCSV(file);
+      setUploadResult(result);
+      // Refresh patient list after successful upload
+      if (result.success) loadData();
+    } catch (err: any) {
+      setUploadResult({ success: false, error: err.message || 'Upload failed' });
+    } finally {
+      setUploading(false);
+      // Reset file input so same file can be re-uploaded
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const authHeaders = (): Record<string, string> => ({ 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) });
 
@@ -116,7 +140,7 @@ export default function PatientManagement() {
             {isCounty ? 'View client records across facilities in your county' : 'View and manage client information and risk levels'}
           </p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
           {(isSuperAdmin || isNational) && (
             <>
               <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
@@ -126,8 +150,48 @@ export default function PatientManagement() {
               </select>
             </>
           )}
+          {isSuperAdmin && (
+            <>
+              <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" aria-label="Upload CSV file" />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap"
+              >
+                <Upload className="w-4 h-4" />
+                {uploading ? 'Uploading...' : 'Upload CSV'}
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Upload result banner */}
+      {uploadResult && (
+        <div className={`rounded-lg border p-4 text-sm ${uploadResult.success ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          <div className="flex justify-between items-start">
+            <div>
+              {uploadResult.success ? (
+                <>
+                  <p className="font-semibold">Upload Successful</p>
+                  <p>Total rows: {uploadResult.summary?.totalRows} | Created: {uploadResult.summary?.created} | Updated: {uploadResult.summary?.updated} | Skipped: {uploadResult.summary?.skipped}</p>
+                  {uploadResult.errors && uploadResult.errors.length > 0 && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-yellow-700">View {uploadResult.errors.length} warnings</summary>
+                      <ul className="mt-1 list-disc list-inside text-xs">
+                        {uploadResult.errors.map((e: any, i: number) => <li key={i}>Row {e.row}: {e.reason}</li>)}
+                      </ul>
+                    </details>
+                  )}
+                </>
+              ) : (
+                <p className="font-semibold">Upload Failed: {uploadResult.error}</p>
+              )}
+            </div>
+            <button onClick={() => setUploadResult(null)} className="text-gray-500 hover:text-gray-700 ml-4">&times;</button>
+          </div>
+        </div>
+      )}
 
       {/* Facilities summary cards (admin/national only, when "All Facilities" is selected) */}
       {(isSuperAdmin || isNational) && !selectedFacility && facilities.length > 0 && (
