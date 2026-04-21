@@ -35,18 +35,24 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT) || 5000;
 
-// --- CORS: Allow frontend and backend domains ---
-const allowedOrigins = [
-  'http://sms-portal.chqi.org',
+// --- CORS: configurable via ALLOWED_ORIGINS env var (comma-separated) ---
+const defaultAllowedOrigins = [
+  'https://providers.chqi.org',
   'https://sms-portal.chqi.org',
-  'http://api-sms-portal.chqi.org',
+  'http://sms-portal.chqi.org',
   'https://api-sms-portal.chqi.org',
+  'http://api-sms-portal.chqi.org',
   'https://providerdashboard-production.up.railway.app',
-  'http://localhost:5173', // Vite dev server
-  'http://localhost:3000', // React dev server
+  'http://localhost:5173',
+  'http://localhost:3000',
   'http://192.168.0.106',
-  'https://192.168.0.106',
+  'https://192.168.0.106'
 ];
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || defaultAllowedOrigins.join(','))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, etc.)
