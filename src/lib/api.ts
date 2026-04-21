@@ -245,11 +245,11 @@ export const api = {
 };
 
 // ================================================================
-// STANDALONE SMS API — NestJS backend (Railway)
+// STANDALONE SMS API — NestJS backend
 // ================================================================
 
 export const smsApi = axios.create({
-  baseURL: import.meta.env.VITE_SMS_API_URL || 'https://risebackend-production.up.railway.app',
+  baseURL: import.meta.env.VITE_SMS_API_URL || 'https://api-providers.chqi.org',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -388,7 +388,7 @@ async function ensureSmsAuthToken(): Promise<string | null> {
 
   smsLoginPromise = (async () => {
     try {
-      const baseURL = smsApi.defaults.baseURL || 'https://risebackend-production.up.railway.app';
+      const baseURL = smsApi.defaults.baseURL || 'https://api-providers.chqi.org';
       const res = await axios.post(
         `${baseURL}/auth/login`,
         { email: SMS_LOGIN_EMAIL, password: SMS_LOGIN_PASSWORD },
