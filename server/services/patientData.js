@@ -335,6 +335,10 @@ class PatientDataService {
    */
   static async getPatientByCCC(cccNumber, requestingUserId) {
     try {
+      if (!requestingUserId) {
+        throw new Error('Unauthorized');
+      }
+
       const query = `
         SELECT 
           p.id,
