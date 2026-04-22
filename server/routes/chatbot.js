@@ -20,6 +20,35 @@ function detectRescheduleIntent(message) {
   return RESCHEDULE_KEYWORDS.some(kw => lower.includes(kw));
 }
 
+// ── Viral load intent detection keywords ──
+const VIRAL_LOAD_KEYWORDS = [
+  'viral load', 'vl', 'virus load', 'what is my viral load',
+  'whats my viral load', "what's my viral load", 'my viral load',
+  'viral', 'load', 'check viral', 'check load',
+];
+
+function detectViralLoadIntent(message) {
+  const lower = message.toLowerCase();
+  return VIRAL_LOAD_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+// ── Fetch viral load from database ──
+async function fetchViralLoad(patientId) {
+  try {
+    const result = await db.query(
+      `SELECT last_viral_load FROM patients WHERE id = $1`,
+      [patientId]
+    );
+    if (result.rows.length > 0) {
+      return result.rows[0].last_viral_load;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching viral load:', error);
+    return null;
+  }
+}
+
 const router = express.Router();
 
 /**
@@ -182,20 +211,38 @@ router.post('/message', async (req, res) => {
     if (isTestOrAdmin) {
       try {
         const isRescheduleAdmin = detectRescheduleIntent(message);
-        const ragResult = await processQuery(message, '0700000000', 'sms');
-        const botTriggeredRescheduleAdmin = ragResult.response &&
-          ragResult.response.includes('Please select your preferred date from the calendar below');
-        const showCalendarAdmin = isRescheduleAdmin || botTriggeredRescheduleAdmin;
+        const isViralLoadAdmin = detectViralLoadIntent(message);
+        
+        let adminResponse;
+        if (isViralLoadAdmin) {
+          // For test/admin, return a sample viral load response
+          adminResponse = {
+            response: 'Your current viral load is 50 copies/mL. This is an important marker of your HIV treatment progress. Keep taking your medications as prescribed!',
+            viralLoad: '50',
+          };
+        } else {
+          const ragResult = await processQuery(message, '0700000000', 'sms');
+          const botTriggeredRescheduleAdmin = ragResult.response &&
+            ragResult.response.includes('Please select your preferred date from the calendar below');
+          const showCalendarAdmin = isRescheduleAdmin || botTriggeredRescheduleAdmin;
 
-        return res.json({
-          success: true,
-          data: {
+          adminResponse = {
             response: showCalendarAdmin
               ? 'I can help you reschedule your appointment. Please select your preferred date from the calendar below.'
               : ragResult.response,
             citations: ragResult.citations,
+            showCalendarAdmin: showCalendarAdmin,
+          };
+        }
+
+        return res.json({
+          success: true,
+          data: {
+            response: adminResponse.response,
+            citations: adminResponse.citations || [],
             conversationId: null,
-            type: showCalendarAdmin ? 'reschedule_calendar' : 'text',
+            type: adminResponse.showCalendarAdmin ? 'reschedule_calendar' : 'text',
+            viralLoad: adminResponse.viralLoad,
           },
         });
       } catch (err) {
@@ -216,12 +263,28 @@ router.post('/message', async (req, res) => {
     // ── Detect reschedule intent ──
     const isReschedule = detectRescheduleIntent(message);
 
+    // ── Detect viral load intent ──
+    const isViralLoadQuery = detectViralLoadIntent(message);
+
     // Process through RAG pipeline
     const ragResult = await processQuery(message, patient.phone, 'sms');
 
     // If the bot response also contains the reschedule trigger phrase, flag it
     const botTriggeredReschedule = ragResult.response &&
       ragResult.response.includes('Please select your preferred date from the calendar below');
+
+    // ── Handle viral load query ──
+    let viralLoadResponse = ragResult.response;
+    let viralLoadData = null;
+    if (isViralLoadQuery) {
+      const viralLoad = await fetchViralLoad(patient.id);
+      viralLoadData = viralLoad;
+      if (viralLoad) {
+        viralLoadResponse = `Your current viral load is ${viralLoad} copies/mL. This is an important marker of your HIV treatment progress. Keep taking your medications as prescribed!`;
+      } else {
+        viralLoadResponse = `I don't have a recent viral load result in your file. Please contact your clinic or healthcare provider to get your viral load tested.`;
+      }
+    }
 
     // ── Silent mental health flagging ──
     const flagCheck = detectFlaggedWords(message);
@@ -252,10 +315,13 @@ router.post('/message', async (req, res) => {
       data: {
         response: showCalendar
           ? 'I can help you reschedule your appointment. Please select your preferred date from the calendar below.'
+          : isViralLoadQuery
+          ? viralLoadResponse
           : ragResult.response,
         citations: ragResult.citations,
         conversationId: ragResult.conversationId,
         type: showCalendar ? 'reschedule_calendar' : 'text',
+        viralLoad: isViralLoadQuery ? viralLoadData : undefined,
       },
     });
   } catch (error) {
