@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import swaggerUi from 'swagger-ui-express';
 import webhookRoutes from './routes/webhooks.js';
 import ragRoutes from './routes/rag.js';
 import conversationRoutes from './routes/conversations.js';
@@ -24,6 +25,7 @@ import flaggedRoutes from './routes/flagged.js';
 import { initDailySync } from './services/dailySync.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import swaggerSpec from './config/swagger.js';
 
 dotenv.config();
 
@@ -33,18 +35,24 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT) || 5000;
 
-// --- CORS: Allow frontend and backend domains ---
-const allowedOrigins = [
-  'http://sms-portal.chqi.org',
+// --- CORS: configurable via ALLOWED_ORIGINS env var (comma-separated) ---
+const defaultAllowedOrigins = [
+  'https://providers.chqi.org',
   'https://sms-portal.chqi.org',
-  'http://api-sms-portal.chqi.org',
+  'http://sms-portal.chqi.org',
   'https://api-sms-portal.chqi.org',
+  'http://api-sms-portal.chqi.org',
   'https://providerdashboard-production.up.railway.app',
-  'http://localhost:5173', // Vite dev server
-  'http://localhost:3000', // React dev server
+  'http://localhost:5173',
+  'http://localhost:3000',
   'http://192.168.0.106',
-  'https://192.168.0.106',
+  'https://192.168.0.106'
 ];
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || defaultAllowedOrigins.join(','))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, etc.)
@@ -80,6 +88,13 @@ app.use('/api/county', countyRoutes);
 app.use('/api/reschedule-requests', rescheduleRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/flagged', flaggedRoutes);
+
+app.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
