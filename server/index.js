@@ -36,9 +36,12 @@ const app = express();
 const DEFAULT_PORT = parseInt(process.env.PORT) || 5000;
 
 // --- CORS: configurable via ALLOWED_ORIGINS env var (comma-separated) ---
+const normalizeOrigin = (value = '') => value.trim().replace(/\/+$/, '').toLowerCase();
+
 const defaultAllowedOrigins = [
   'https://providers.chqi.org',
   'https://sms-portal.chqi.org',
+  'https://www.sms-portal.chqi.org',
   'http://sms-portal.chqi.org',
   'https://api-sms-portal.chqi.org',
   'http://api-sms-portal.chqi.org',
@@ -50,15 +53,24 @@ const defaultAllowedOrigins = [
   'https://192.168.0.106'
 ];
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || defaultAllowedOrigins.join(','))
+const envAllowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+// Keep safe defaults and extend with env overrides so production cannot accidentally
+// lock out known frontend domains when ALLOWED_ORIGINS is partially configured.
+const allowedOrigins = new Set(
+  [...defaultAllowedOrigins, ...envAllowedOrigins].map((origin) => normalizeOrigin(origin)).filter(Boolean)
+);
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (allowedOrigins.has(normalizedOrigin)) {
       return callback(null, true);
     } else {
       return callback(new Error('Not allowed by CORS: ' + origin));
