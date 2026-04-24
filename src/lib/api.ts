@@ -7,7 +7,8 @@ import type {
   WorkflowTriggerResponse,
 } from '../types/sms';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = 'https://api-sms-portal.chqi.org';
+const SMS_MODULE_API_BASE_URL = 'https://api-providers.chqi.org';
 
 // Helper to get auth token and build headers
 function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
@@ -280,7 +281,7 @@ export const api = {
 // ================================================================
 
 export const smsApi = axios.create({
-  baseURL: import.meta.env.VITE_SMS_API_URL || 'https://api-providers.chqi.org',
+  baseURL: SMS_MODULE_API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
