@@ -45,6 +45,7 @@ interface Facility {
   county_name: string;
   email: string;
   operational_status: string;
+  sms_activation: boolean;
 }
 
 const PAGE_SIZE = 20;
@@ -67,6 +68,37 @@ export default function FacilityDetail() {
   // Selection state for bulk delete
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+
+  // SMS activation toggle
+  const [toggling, setToggling] = useState(false);
+
+  const handleToggleSmsActivation = async () => {
+    if (!facility) return;
+    const next = !facility.sms_activation;
+    const action = next ? 'ACTIVATE' : 'DEACTIVATE';
+    const confirmed = window.confirm(
+      `Are you sure you want to ${action} SMS sending for ${facility.name}?\n\n` +
+      (next
+        ? 'This will allow clients from this facility to receive SMS messages.'
+        : 'This will stop all SMS messages being sent to clients at this facility.')
+    );
+    if (!confirmed) return;
+    setToggling(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/facilities/${facility.id}/sms-activation`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ smsActivation: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update SMS activation');
+      setFacility(prev => prev ? { ...prev, sms_activation: data.data.sms_activation } : prev);
+    } catch (err: any) {
+      alert('Error: ' + (err.message || 'Unknown error'));
+    } finally {
+      setToggling(false);
+    }
+  };
 
   // Stats
   const [highRisk, setHighRisk] = useState(0);
@@ -201,6 +233,32 @@ export default function FacilityDetail() {
                 {facility?.email && <span className="text-gray-400">{facility.email}</span>}
               </div>
             </div>
+            {isSuperAdmin && facility && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">SMS Activation</span>
+                <button
+                  onClick={handleToggleSmsActivation}
+                  disabled={toggling}
+                  aria-label={facility.sms_activation ? 'Deactivate SMS' : 'Activate SMS'}
+                  className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    facility.sms_activation
+                      ? 'bg-emerald-500 focus:ring-emerald-500'
+                      : 'bg-gray-300 focus:ring-gray-400'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition-transform duration-200 ${
+                      facility.sms_activation ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className={`text-sm font-semibold ${
+                  facility.sms_activation ? 'text-emerald-600' : 'text-gray-400'
+                }`}>
+                  {toggling ? '…' : facility.sms_activation ? 'ON' : 'OFF'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

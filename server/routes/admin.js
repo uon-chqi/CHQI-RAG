@@ -265,7 +265,7 @@ router.get('/overview', async (req, res) => {
     const facilitiesResult = await db.query(`
       SELECT
         f.id, f.name, f.code, f.facility_type, f.operational_status, f.is_active,
-        f.county_id, f.email,
+        f.county_id, f.email, f.sms_activation,
         c.name AS county_name, c.code AS county_code,
         (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id) AS patient_count,
         (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id AND risk_level = 'high') AS high_risk,
@@ -395,6 +395,35 @@ router.delete('/users/:id', authenticateToken, requireSuperAdmin, async (req, re
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Delete user error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PATCH /api/admin/facilities/:id/sms-activation
+ * Toggle sms_activation on a facility (super admin only)
+ */
+router.patch('/facilities/:id/sms-activation', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { smsActivation } = req.body;
+
+    if (typeof smsActivation !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'smsActivation must be a boolean' });
+    }
+
+    const result = await db.query(
+      `UPDATE facilities SET sms_activation = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, sms_activation`,
+      [smsActivation, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Facility not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Toggle SMS activation error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
