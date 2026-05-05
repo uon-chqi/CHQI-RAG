@@ -43,7 +43,9 @@ export interface SmsTemplateApi {
   id: string;
   name: string;
   body: string;
+  bodySwahili?: string | null;
   body_swahili?: string | null;
+  isBilingual?: boolean;
   is_bilingual?: boolean;
   facilityId?: string | null;
   facility_id?: string | null;

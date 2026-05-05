@@ -7,8 +7,8 @@ import type {
   WorkflowTriggerResponse,
 } from '../types/sms';
 
-const API_BASE_URL = 'https://api-sms-portal.chqi.org';
-const SMS_MODULE_API_BASE_URL = 'https://api-providers.chqi.org';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+const SMS_MODULE_API_BASE_URL = import.meta.env.VITE_SMS_API_URL;
 
 // Helper to get auth token and build headers
 function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
@@ -326,13 +326,16 @@ function extractSmsToken(payload: unknown): string | null {
 }
 
 function mapTemplateFromApi(template: SmsTemplateApi): SmsTemplate {
+  const bodySwahili = template.bodySwahili ?? template.body_swahili ?? null;
+  const isBilingual = template.isBilingual ?? template.is_bilingual ?? Boolean(bodySwahili);
+
   return {
     id: template.id,
     facilityId: template.facilityId ?? template.facility_id ?? null,
     name: template.name,
     body: template.body,
-    bodySwahili: template.body_swahili ?? null,
-    isBilingual: template.is_bilingual,
+    bodySwahili,
+    isBilingual,
     isActive: template.isActive ?? template.is_active ?? true,
     createdAt: template.createdAt ?? template.created_at ?? '',
     updatedAt: template.updatedAt ?? template.updated_at ?? '',
@@ -346,9 +349,6 @@ function mapTemplatePayloadToApi(data: Partial<SmsTemplate>): Record<string, unk
   if (typeof data.body === 'string') payload.body = data.body;
   if ('bodySwahili' in data) {
     payload.body_swahili = data.bodySwahili && data.bodySwahili.trim() ? data.bodySwahili.trim() : null;
-  }
-  if ('isBilingual' in data && typeof data.isBilingual === 'boolean') {
-    payload.is_bilingual = data.isBilingual;
   }
 
   if ('facilityId' in data) {
@@ -380,10 +380,6 @@ function mapTemplateUpdatePayloadToApi(
     if (nextBodySwahili !== prevBodySwahili) {
       payload.body_swahili = nextBodySwahili;
     }
-  }
-
-  if ('isBilingual' in data && typeof data.isBilingual === 'boolean' && data.isBilingual !== original?.isBilingual) {
-    payload.is_bilingual = data.isBilingual;
   }
 
   if ('isActive' in data && typeof data.isActive === 'boolean') {
@@ -420,7 +416,7 @@ async function ensureSmsAuthToken(): Promise<string | null> {
 
   smsLoginPromise = (async () => {
     try {
-      const baseURL = smsApi.defaults.baseURL || 'https://api-providers.chqi.org';
+      const baseURL = SMS_MODULE_API_BASE_URL;
       const res = await axios.post(
         `${baseURL}/auth/login`,
         { email: SMS_LOGIN_EMAIL, password: SMS_LOGIN_PASSWORD },
