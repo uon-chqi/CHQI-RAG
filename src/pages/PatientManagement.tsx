@@ -12,12 +12,16 @@ interface Patient {
   phone?: string;
   patient_name?: string;
   first_name?: string;
+  middle_name?: string;
   last_name?: string;
   email?: string;
   risk_level: 'HIGH' | 'MEDIUM' | 'LOW';
   status?: string;
   ccc_number?: string;
+  gods_number?: string;
+  patient_clinic_number?: string;
   facility_id?: string;
+  facility_name?: string;
   next_appointment_date?: string;
   created_at: string;
 }
@@ -125,11 +129,12 @@ export default function PatientManagement() {
 
   const displayName = (p: Patient) => {
     if (p.patient_name) return p.patient_name;
-    if (p.first_name || p.last_name) return ((p.first_name || '') + ' ' + (p.last_name || '')).trim();
+    if (p.first_name || p.middle_name || p.last_name) return [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(' ');
     return 'N/A';
   };
 
   const displayPhone = (p: Patient) => p.phone_number || p.phone || '';
+  const displayFacility = (p: Patient) => p.facility_name || p.facility_id || '\u2014';
 
   return (
     <div className="flex flex-col p-3 sm:p-4 md:p-6 gap-4 sm:gap-6 bg-gray-50 min-h-screen">
@@ -248,6 +253,7 @@ export default function PatientManagement() {
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Client Name</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Phone</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">CCC Number</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 hidden lg:table-cell">Clinic No.</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Risk Level</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900">Facility</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-900 hidden md:table-cell">Next Appt</th>
@@ -256,17 +262,18 @@ export default function PatientManagement() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
-                <tr><td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500"><div className="flex items-center justify-center gap-2"><div className="w-5 h-5 border-2 border-navy-900 border-t-transparent rounded-full animate-spin" />Loading clients...</div></td></tr>
+                <tr><td colSpan={8} className="px-3 sm:px-6 py-12 text-center text-gray-500"><div className="flex items-center justify-center gap-2"><div className="w-5 h-5 border-2 border-navy-900 border-t-transparent rounded-full animate-spin" />Loading clients...</div></td></tr>
               ) : patients.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 sm:px-6 py-12 text-center text-gray-500 text-sm">No clients found.</td></tr>
+                <tr><td colSpan={8} className="px-3 sm:px-6 py-12 text-center text-gray-500 text-sm">No clients found.</td></tr>
               ) : (
                 patients.map((patient) => (
                   <tr key={patient.id} className="hover:bg-gray-50">
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium text-gray-900">{displayName(patient)}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{displayPhone(patient)}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 font-mono">{patient.ccc_number || '\u2014'}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 font-mono hidden lg:table-cell">{patient.patient_clinic_number || patient.gods_number || '\u2014'}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm"><span className={'px-2 py-1 rounded-full text-xs font-medium ' + riskLevelColor(patient.risk_level)}>{(patient.risk_level || 'LOW').toUpperCase()}</span></td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{(patient as any).facility_name || patient.facility_id || '\u2014'}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{displayFacility(patient)}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden md:table-cell">{patient.next_appointment_date ? new Date(patient.next_appointment_date).toLocaleDateString() : '\u2014'}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600 hidden sm:table-cell">{new Date(patient.created_at).toLocaleDateString()}</td>
                   </tr>

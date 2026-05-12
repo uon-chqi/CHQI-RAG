@@ -65,7 +65,15 @@ router.get('/', async (req, res) => {
     }
     
     if (search) {
-      whereClause += ` AND (p.first_name ILIKE $${paramIndex} OR p.last_name ILIKE $${paramIndex} OR p.phone ILIKE $${paramIndex} OR p.ccc_number ILIKE $${paramIndex})`;
+      whereClause += ` AND (
+        p.first_name ILIKE $${paramIndex}
+        OR p.middle_name ILIKE $${paramIndex}
+        OR p.last_name ILIKE $${paramIndex}
+        OR p.phone ILIKE $${paramIndex}
+        OR p.ccc_number ILIKE $${paramIndex}
+        OR p.gods_number ILIKE $${paramIndex}
+        OR p.patient_clinic_number ILIKE $${paramIndex}
+      )`;
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
@@ -80,15 +88,22 @@ router.get('/', async (req, res) => {
         p.id,
         p.facility_id,
         f.name as facility_name,
-        p.first_name || ' ' || p.last_name as patient_name,
+        CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name) as patient_name,
         p.first_name,
+        p.middle_name,
         p.last_name,
         p.date_of_birth,
         p.gender,
+        p.sex,
         p.phone,
         p.email,
         p.physical_address,
         p.ccc_number,
+        p.gods_number,
+        p.patient_clinic_number,
+        p.mother_first_name,
+        p.mother_middle_name,
+        p.mother_last_name,
         p.risk_level,
         p.enrollment_date,
         p.next_appointment_date,
@@ -99,11 +114,21 @@ router.get('/', async (req, res) => {
         p.risk_score,
         p.risk_factors,
         p.county,
+        p.county_name,
         p.sub_county,
         p.ward,
+        p.village,
         p.city_village,
+        COALESCE(p.city_village, p.village) AS display_village,
         p.landmark,
+        p.nearest_landmark,
+        COALESCE(p.landmark, p.nearest_landmark) AS display_landmark,
+        p.gps_location,
+        p.postal_address,
         p.marital_status,
+        p.death_date,
+        p.death_indicator,
+        p.date_of_birth_precision,
         p.case_manager,
         p.external_patient_id,
         p.is_active as status,
