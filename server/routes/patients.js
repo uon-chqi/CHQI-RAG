@@ -46,6 +46,8 @@ router.get('/', async (req, res) => {
       page = 1,
       limit = 25
     } = req.query;
+    const requestedLimit = parseInt(limit);
+    const effectiveLimit = facility_id ? Math.min(requestedLimit || 10, 10) : (requestedLimit || 25);
 
     let whereClause = 'WHERE p.is_active = TRUE';
     const queryParams = [];
@@ -79,9 +81,9 @@ router.get('/', async (req, res) => {
     }
 
     // Pagination
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const offset = (parseInt(page) - 1) * effectiveLimit;
     const limitClause = `LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    queryParams.push(parseInt(limit), offset);
+    queryParams.push(effectiveLimit, offset);
 
     const query = `
       SELECT 
@@ -157,7 +159,8 @@ router.get('/', async (req, res) => {
       count: result.rows.length,
       total: total,
       page: parseInt(page),
-      totalPages: Math.ceil(total / parseInt(limit)),
+      totalPages: Math.ceil(total / effectiveLimit),
+      limit: effectiveLimit,
       data: result.rows
     });
   } catch (error) {
