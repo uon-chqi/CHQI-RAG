@@ -22,6 +22,7 @@ import countyRoutes from './routes/county.js';
 import rescheduleRoutes from './routes/reschedule.js';
 import chatbotRoutes from './routes/chatbot.js';
 import flaggedRoutes from './routes/flagged.js';
+import hl7Routes from './routes/hl7.js';
 import { initDailySync } from './services/dailySync.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -101,6 +102,7 @@ app.use('/api/county', countyRoutes);
 app.use('/api/reschedule-requests', rescheduleRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/flagged', flaggedRoutes);
+app.use('/api/hl7', hl7Routes);
 
 app.get('/api/docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');

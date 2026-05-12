@@ -75,13 +75,18 @@ export const smsScheduler = {
       
       // Get all appointments in the next 30 days
       const appointmentsResult = await query(
-        `SELECT a.*, p.phone_number, p.risk_level, p.facility_id, p.patient_name, p.id as patient_id
+        `SELECT a.*,
+                p.phone AS phone_number,
+                p.risk_level,
+                p.facility_id,
+                CONCAT_WS(' ', p.first_name, p.last_name) AS patient_name,
+                p.id as patient_id
          FROM appointments a
          JOIN patients p ON a.patient_id = p.id
          WHERE a.status = 'scheduled'
          AND a.appointment_date > now()
          AND a.appointment_date < now() + interval '30 days'
-         AND p.status = 'active'
+         AND p.is_active = true
          ORDER BY a.appointment_date ASC`
       );
 
