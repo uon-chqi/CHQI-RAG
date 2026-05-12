@@ -57,7 +57,7 @@ interface Facility {
   sms_activation: boolean;
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 export default function FacilityDetail() {
   const { id } = useParams<{ id: string }>();
