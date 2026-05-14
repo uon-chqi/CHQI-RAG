@@ -23,6 +23,7 @@ import rescheduleRoutes from './routes/reschedule.js';
 import chatbotRoutes from './routes/chatbot.js';
 import flaggedRoutes from './routes/flagged.js';
 import hl7Routes from './routes/hl7.js';
+import db from './config/database.js';
 import { initDailySync } from './services/dailySync.js';
 import { rateLimiter } from './middleware/rateLimiter.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -157,9 +158,22 @@ const startServer = (port) => {
   return server;
 };
 
+const warmDatabasePool = async () => {
+  const connectionsToWarm = Number(process.env.DB_WARM_CONNECTIONS || 8);
+  try {
+    await Promise.all(
+      Array.from({ length: connectionsToWarm }, () => db.query('SELECT 1'))
+    );
+    console.log(`Database pool warmed with ${connectionsToWarm} connections`);
+  } catch (error) {
+    console.warn('Database warm-up failed; first request may be slower', error.message);
+  }
+};
+
 // Start the server
 console.log(`🚀 Starting server...`);
 startServer(DEFAULT_PORT);
+warmDatabasePool();
 
 // Initialize daily sync cron job (9 PM EAT)
 initDailySync();

@@ -44,6 +44,7 @@ export default function PatientManagement() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterRiskLevel, setFilterRiskLevel] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -83,15 +84,20 @@ export default function PatientManagement() {
     }
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearchTerm(searchTerm.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       if (isCounty) {
         const params = new URLSearchParams();
-        if (searchTerm) params.set('search', searchTerm);
+        if (debouncedSearchTerm) params.set('search', debouncedSearchTerm);
         if (filterRiskLevel) params.set('risk_level', filterRiskLevel);
         params.set('page', String(page));
-        params.set('limit', '25');
+        params.set('limit', '10');
         const res = await fetch(API_BASE + '/api/county/patients?' + params, { headers: authHeaders() });
         const json = await res.json();
         setPatients(json.data || []);
@@ -103,20 +109,19 @@ export default function PatientManagement() {
         const low = list.filter(p => (p.risk_level || '').toUpperCase() === 'LOW').length;
         setStats({ total: json.pagination?.total || list.length, byRiskLevel: { HIGH: high, MEDIUM: med, LOW: low } });
       } else {
-        const [patientsRes, statsRes] = await Promise.all([
-          api.getPatients({ facility_id: selectedFacility || undefined, risk_level: filterRiskLevel || undefined, search: searchTerm || undefined, page, limit: 25 }),
-          api.getPatientStats(selectedFacility || undefined),
-        ]);
+        const patientsRes = await api.getPatients({ facility_id: selectedFacility || undefined, risk_level: filterRiskLevel || undefined, search: debouncedSearchTerm || undefined, page, limit: 10 });
         setPatients(patientsRes.data || []);
-        setTotalPages(patientsRes.pagination?.pages || 1);
-        setTotal(patientsRes.pagination?.total || 0);
-        setStats(statsRes.data || { total: 0, byRiskLevel: { HIGH: 0, MEDIUM: 0, LOW: 0 } });
+        setTotalPages(patientsRes.pagination?.pages || patientsRes.totalPages || 1);
+        setTotal(patientsRes.pagination?.total || patientsRes.total || 0);
+        api.getPatientStats(selectedFacility || undefined)
+          .then((statsRes) => setStats(statsRes.data || { total: 0, byRiskLevel: { HIGH: 0, MEDIUM: 0, LOW: 0 } }))
+          .catch(() => {});
       }
     } catch { setPatients([]); } finally { setLoading(false); }
-  }, [selectedFacility, filterRiskLevel, searchTerm, page, isCounty]);
+  }, [selectedFacility, filterRiskLevel, debouncedSearchTerm, page, isCounty]);
 
   useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setPage(1); }, [selectedFacility, filterRiskLevel, searchTerm]);
+  useEffect(() => { setPage(1); }, [selectedFacility, filterRiskLevel, debouncedSearchTerm]);
 
   const riskLevelColor = (level: string) => {
     switch ((level || '').toUpperCase()) {

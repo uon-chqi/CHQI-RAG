@@ -10,6 +10,9 @@ import { authenticateToken, requireSuperAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
+let overviewCache = null;
+const OVERVIEW_CACHE_TTL_MS = 10000;
+
 /**
  * GET /api/admin/dashboard
  * Super admin dashboard with all facilities and data
@@ -258,46 +261,119 @@ router.get('/sync-status', authenticateToken, async (req, res) => {
  */
 router.get('/overview', async (req, res) => {
   try {
-    const countiesResult = await db.query(`
-      SELECT id, name, code, is_active, created_at FROM counties ORDER BY name
-    `);
+    if (overviewCache && overviewCache.expiresAt > Date.now()) {
+      res.set('Cache-Control', 'private, max-age=10');
+      return res.json(overviewCache.payload);
+    }
 
-    const facilitiesResult = await db.query(`
+    const [
+      countyCountResult,
+      facilityCountResult,
+      patientSummaryResult,
+      userCountResult,
+      conversationSummaryResult,
+      documentCountResult,
+      countiesResult,
+      facilitiesResult
+    ] = await Promise.all([
+      db.query(`
+        SELECT COUNT(*) AS total_counties
+        FROM counties
+        WHERE is_active = TRUE
+      `),
+      db.query(`
+        SELECT COUNT(*) AS total_facilities
+        FROM facilities
+        WHERE is_active = TRUE
+      `),
+      db.query(`
+        SELECT
+          COUNT(*) AS total_patients,
+          COUNT(*) FILTER (WHERE risk_level = 'high') AS high_risk_patients,
+          COUNT(*) FILTER (
+            WHERE next_appointment_date >= CURRENT_DATE
+              AND next_appointment_date < CURRENT_DATE + INTERVAL '7 days'
+          ) AS upcoming_appointments,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_patients_30d
+        FROM patients
+        WHERE is_active = TRUE
+      `),
+      db.query(`
+        SELECT COUNT(*) AS total_users
+        FROM auth_users
+        WHERE is_active = TRUE
+      `),
+      db.query(`
+        SELECT
+          COUNT(*) AS total_conversations,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours') AS messages_today
+        FROM conversations
+      `),
+      db.query(`
+        SELECT COUNT(*) AS total_documents
+        FROM documents
+      `),
+      db.query(`
+        SELECT
+          c.id,
+          c.name,
+          c.code,
+          c.is_active,
+          c.created_at,
+          COUNT(DISTINCT f.id)::int AS facility_count,
+          COUNT(p.id)::int AS patient_count,
+          COUNT(p.id) FILTER (WHERE p.risk_level = 'high')::int AS high_risk,
+          COUNT(p.id) FILTER (WHERE p.risk_level = 'medium')::int AS medium_risk,
+          COUNT(p.id) FILTER (WHERE p.risk_level = 'low')::int AS low_risk
+        FROM counties c
+        LEFT JOIN facilities f ON f.county_id = c.id AND f.is_active = TRUE
+        LEFT JOIN patients p ON p.facility_id = f.id AND p.is_active = TRUE
+        WHERE c.is_active = TRUE
+        GROUP BY c.id, c.name, c.code, c.is_active, c.created_at
+        ORDER BY c.name
+      `),
+      db.query(`
       SELECT
         f.id, f.name, f.code, f.facility_type, f.operational_status, f.is_active,
         f.county_id, f.email, f.sms_activation,
         c.name AS county_name, c.code AS county_code,
-        (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id) AS patient_count,
-        (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id AND risk_level = 'high') AS high_risk,
-        (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id AND risk_level = 'medium') AS medium_risk,
-        (SELECT COUNT(*)::int FROM patients WHERE facility_id = f.id AND risk_level = 'low') AS low_risk
+        COUNT(p.id)::int AS patient_count,
+        COUNT(p.id) FILTER (WHERE p.risk_level = 'high')::int AS high_risk,
+        COUNT(p.id) FILTER (WHERE p.risk_level = 'medium')::int AS medium_risk,
+        COUNT(p.id) FILTER (WHERE p.risk_level = 'low')::int AS low_risk
       FROM facilities f
       LEFT JOIN counties c ON f.county_id = c.id
+      LEFT JOIN patients p ON p.facility_id = f.id AND p.is_active = TRUE
+      WHERE f.is_active = TRUE
+      GROUP BY f.id, f.name, f.code, f.facility_type, f.operational_status, f.is_active,
+        f.county_id, f.email, f.sms_activation, c.name, c.code
       ORDER BY c.name, f.name
-    `);
+      `),
+    ]);
+    const summary = {
+      total_counties: countyCountResult.rows[0]?.total_counties || 0,
+      total_facilities: facilityCountResult.rows[0]?.total_facilities || 0,
+      total_patients: patientSummaryResult.rows[0]?.total_patients || 0,
+      total_users: userCountResult.rows[0]?.total_users || 0,
+      total_conversations: conversationSummaryResult.rows[0]?.total_conversations || 0,
+      total_documents: documentCountResult.rows[0]?.total_documents || 0,
+      high_risk_patients: patientSummaryResult.rows[0]?.high_risk_patients || 0,
+      upcoming_appointments: patientSummaryResult.rows[0]?.upcoming_appointments || 0,
+      messages_today: conversationSummaryResult.rows[0]?.messages_today || 0,
+      new_patients_30d: patientSummaryResult.rows[0]?.new_patients_30d || 0,
+    };
 
-    const summaryResult = await db.query(`
-      SELECT
-        (SELECT COUNT(*) FROM counties  WHERE is_active = TRUE) AS total_counties,
-        (SELECT COUNT(*) FROM facilities WHERE is_active = TRUE) AS total_facilities,
-        (SELECT COUNT(*) FROM patients)                          AS total_patients,
-        (SELECT COUNT(*) FROM auth_users WHERE is_active = TRUE) AS total_users,
-        (SELECT COUNT(*) FROM conversations)                     AS total_conversations,
-        (SELECT COUNT(*) FROM documents)                         AS total_documents,
-        (SELECT COUNT(*) FROM patients WHERE risk_level = 'high') AS high_risk_patients,
-        (SELECT COUNT(*) FROM patients WHERE next_appointment_date >= CURRENT_DATE AND next_appointment_date < CURRENT_DATE + INTERVAL '7 days') AS upcoming_appointments,
-        (SELECT COUNT(*) FROM conversations WHERE created_at >= NOW() - INTERVAL '24 hours') AS messages_today,
-        (SELECT COUNT(*) FROM patients WHERE created_at >= NOW() - INTERVAL '30 days') AS new_patients_30d
-    `);
-
-    res.json({
+    const payload = {
       success: true,
       data: {
-        summary: summaryResult.rows[0],
+        summary,
         counties: countiesResult.rows,
         facilities: facilitiesResult.rows
       }
-    });
+    };
+    overviewCache = { expiresAt: Date.now() + OVERVIEW_CACHE_TTL_MS, payload };
+    res.set('Cache-Control', 'private, max-age=10');
+    res.json(payload);
   } catch (error) {
     console.error('Overview error:', error);
     res.status(500).json({ success: false, error: error.message });

@@ -25,6 +25,13 @@ async function run() {
       'CREATE INDEX IF NOT EXISTS idx_patients_appointment_status ON patients(appointment_status)',
       'CREATE INDEX IF NOT EXISTS idx_patients_external_id ON patients(external_patient_id)',
       'CREATE INDEX IF NOT EXISTS idx_patients_last_visit ON patients(last_visit_date)',
+      'CREATE INDEX IF NOT EXISTS idx_patients_active_created_at ON patients(created_at DESC) WHERE is_active = TRUE',
+      'CREATE INDEX IF NOT EXISTS idx_patients_active_facility_created_at ON patients(facility_id, created_at DESC) WHERE is_active = TRUE',
+      'CREATE INDEX IF NOT EXISTS idx_patients_active_facility_risk ON patients(facility_id, risk_level) WHERE is_active = TRUE',
+      'CREATE INDEX IF NOT EXISTS idx_patients_active_risk ON patients(risk_level) WHERE is_active = TRUE',
+      'CREATE INDEX IF NOT EXISTS idx_patients_active_next_appointment ON patients(next_appointment_date) WHERE is_active = TRUE',
+      'CREATE INDEX IF NOT EXISTS idx_conversations_created_at_desc ON conversations(created_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_flagged_patients_facility_status ON flagged_patients(facility_id, status)',
     ];
     for (const s of stmts) {
       console.log('Running:', s.substring(0, 70) + '...');

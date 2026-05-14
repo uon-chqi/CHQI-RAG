@@ -18,7 +18,7 @@ interface Stats {
   flaggedPatients?: number;
 }
 
-interface County { id: string; name: string; code: string; }
+interface County { id: string; name: string; code: string; facility_count?: number; patient_count?: number; high_risk?: number; medium_risk?: number; low_risk?: number; }
 interface Facility { id: string; name: string; code: string; county_name: string; operational_status: string; email?: string; patient_count?: number; high_risk?: number; medium_risk?: number; low_risk?: number; }
 
 export default function Dashboard() {
@@ -32,7 +32,7 @@ export default function Dashboard() {
 
   const isAdmin = isSuperAdmin || isNational;
 
-  useEffect(() => { fetchAll(); const iv = setInterval(fetchAll, 30000); return () => clearInterval(iv); }, []);
+  useEffect(() => { fetchAll(); const iv = setInterval(fetchAll, 60000); return () => clearInterval(iv); }, []);
 
   const fetchAll = async () => {
     try {
@@ -170,11 +170,11 @@ export default function Dashboard() {
                     <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">No counties</td></tr>
                   ) : counties.slice(0, 10).map(c => {
                     const countyFacilities = facilities.filter(f => f.county_name === c.name);
-                    const facilityCount = countyFacilities.length;
-                    const patientCount = countyFacilities.reduce((sum, f) => sum + (Number(f.patient_count) || 0), 0);
-                    const highRisk = countyFacilities.reduce((sum, f) => sum + (Number(f.high_risk) || 0), 0);
-                    const mediumRisk = countyFacilities.reduce((sum, f) => sum + (Number(f.medium_risk) || 0), 0);
-                    const lowRisk = countyFacilities.reduce((sum, f) => sum + (Number(f.low_risk) || 0), 0);
+                    const facilityCount = Number(c.facility_count) || countyFacilities.length;
+                    const patientCount = Number(c.patient_count) || countyFacilities.reduce((sum, f) => sum + (Number(f.patient_count) || 0), 0);
+                    const highRisk = Number(c.high_risk) || countyFacilities.reduce((sum, f) => sum + (Number(f.high_risk) || 0), 0);
+                    const mediumRisk = Number(c.medium_risk) || countyFacilities.reduce((sum, f) => sum + (Number(f.medium_risk) || 0), 0);
+                    const lowRisk = Number(c.low_risk) || countyFacilities.reduce((sum, f) => sum + (Number(f.low_risk) || 0), 0);
                     return (
                       <tr key={c.id} className="hover:bg-blue-50/30 transition-colors">
                         <td className="px-5 py-3.5 font-semibold text-gray-900">{c.name}</td>

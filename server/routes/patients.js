@@ -44,10 +44,11 @@ router.get('/', async (req, res) => {
       risk_level,
       search,
       page = 1,
-      limit = 25
+      limit = 10
     } = req.query;
     const requestedLimit = parseInt(limit);
-    const effectiveLimit = facility_id ? Math.min(requestedLimit || 10, 10) : (requestedLimit || 25);
+    const effectiveLimit = Math.min(Math.max(requestedLimit || 10, 1), 50);
+    const currentPage = Math.max(parseInt(page) || 1, 1);
 
     let whereClause = 'WHERE p.is_active = TRUE';
     const queryParams = [];
@@ -81,7 +82,7 @@ router.get('/', async (req, res) => {
     }
 
     // Pagination
-    const offset = (parseInt(page) - 1) * effectiveLimit;
+    const offset = (currentPage - 1) * effectiveLimit;
     const limitClause = `LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     queryParams.push(effectiveLimit, offset);
 
@@ -143,23 +144,30 @@ router.get('/', async (req, res) => {
       ${limitClause}
     `;
 
-    const result = await db.query(query, queryParams);
-    
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(*) as total
       FROM patients p
       ${whereClause}
     `;
-    const countResult = await db.query(countQuery, queryParams.slice(0, -2)); // Remove limit/offset params
+    const [result, countResult] = await Promise.all([
+      db.query(query, queryParams),
+      db.query(countQuery, queryParams.slice(0, -2))
+    ]);
     const total = parseInt(countResult.rows[0].total);
     
     res.json({
       success: true,
       count: result.rows.length,
       total: total,
-      page: parseInt(page),
+      page: currentPage,
       totalPages: Math.ceil(total / effectiveLimit),
+      pagination: {
+        total,
+        page: currentPage,
+        pages: Math.ceil(total / effectiveLimit),
+        limit: effectiveLimit
+      },
       limit: effectiveLimit,
       data: result.rows
     });
