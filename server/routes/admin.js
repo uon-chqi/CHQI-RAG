@@ -11,7 +11,7 @@ import { authenticateToken, requireSuperAdmin } from '../middleware/auth.js';
 const router = express.Router();
 
 let overviewCache = null;
-const OVERVIEW_CACHE_TTL_MS = 10000;
+const OVERVIEW_CACHE_TTL_MS = Number(process.env.DASHBOARD_CACHE_TTL_MS || 60000);
 
 /**
  * GET /api/admin/dashboard
@@ -262,117 +262,120 @@ router.get('/sync-status', authenticateToken, async (req, res) => {
 router.get('/overview', async (req, res) => {
   try {
     if (overviewCache && overviewCache.expiresAt > Date.now()) {
-      res.set('Cache-Control', 'private, max-age=10');
+      res.set('Cache-Control', `private, max-age=${Math.floor(OVERVIEW_CACHE_TTL_MS / 1000)}`);
       return res.json(overviewCache.payload);
     }
 
-    const [
-      countyCountResult,
-      facilityCountResult,
-      patientSummaryResult,
-      userCountResult,
-      conversationSummaryResult,
-      documentCountResult,
-      countiesResult,
-      facilitiesResult
-    ] = await Promise.all([
-      db.query(`
-        SELECT COUNT(*) AS total_counties
-        FROM counties
-        WHERE is_active = TRUE
-      `),
-      db.query(`
-        SELECT COUNT(*) AS total_facilities
-        FROM facilities
-        WHERE is_active = TRUE
-      `),
-      db.query(`
-        SELECT
-          COUNT(*) AS total_patients,
-          COUNT(*) FILTER (WHERE risk_level = 'high') AS high_risk_patients,
-          COUNT(*) FILTER (
-            WHERE next_appointment_date >= CURRENT_DATE
-              AND next_appointment_date < CURRENT_DATE + INTERVAL '7 days'
-          ) AS upcoming_appointments,
-          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_patients_30d
-        FROM patients
-        WHERE is_active = TRUE
-      `),
-      db.query(`
-        SELECT COUNT(*) AS total_users
-        FROM auth_users
-        WHERE is_active = TRUE
-      `),
-      db.query(`
-        SELECT
-          COUNT(*) AS total_conversations,
-          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours') AS messages_today
-        FROM conversations
-      `),
-      db.query(`
-        SELECT COUNT(*) AS total_documents
-        FROM documents
-      `),
-      db.query(`
-        SELECT
-          c.id,
-          c.name,
-          c.code,
-          c.is_active,
-          c.created_at,
-          COUNT(DISTINCT f.id)::int AS facility_count,
-          COUNT(p.id)::int AS patient_count,
-          COUNT(p.id) FILTER (WHERE p.risk_level = 'high')::int AS high_risk,
-          COUNT(p.id) FILTER (WHERE p.risk_level = 'medium')::int AS medium_risk,
-          COUNT(p.id) FILTER (WHERE p.risk_level = 'low')::int AS low_risk
-        FROM counties c
-        LEFT JOIN facilities f ON f.county_id = c.id AND f.is_active = TRUE
-        LEFT JOIN patients p ON p.facility_id = f.id AND p.is_active = TRUE
-        WHERE c.is_active = TRUE
-        GROUP BY c.id, c.name, c.code, c.is_active, c.created_at
-        ORDER BY c.name
-      `),
-      db.query(`
-      SELECT
-        f.id, f.name, f.code, f.facility_type, f.operational_status, f.is_active,
-        f.county_id, f.email, f.sms_activation,
-        c.name AS county_name, c.code AS county_code,
-        COUNT(p.id)::int AS patient_count,
-        COUNT(p.id) FILTER (WHERE p.risk_level = 'high')::int AS high_risk,
-        COUNT(p.id) FILTER (WHERE p.risk_level = 'medium')::int AS medium_risk,
-        COUNT(p.id) FILTER (WHERE p.risk_level = 'low')::int AS low_risk
-      FROM facilities f
-      LEFT JOIN counties c ON f.county_id = c.id
-      LEFT JOIN patients p ON p.facility_id = f.id AND p.is_active = TRUE
-      WHERE f.is_active = TRUE
-      GROUP BY f.id, f.name, f.code, f.facility_type, f.operational_status, f.is_active,
-        f.county_id, f.email, f.sms_activation, c.name, c.code
-      ORDER BY c.name, f.name
-      `),
-    ]);
-    const summary = {
-      total_counties: countyCountResult.rows[0]?.total_counties || 0,
-      total_facilities: facilityCountResult.rows[0]?.total_facilities || 0,
-      total_patients: patientSummaryResult.rows[0]?.total_patients || 0,
-      total_users: userCountResult.rows[0]?.total_users || 0,
-      total_conversations: conversationSummaryResult.rows[0]?.total_conversations || 0,
-      total_documents: documentCountResult.rows[0]?.total_documents || 0,
-      high_risk_patients: patientSummaryResult.rows[0]?.high_risk_patients || 0,
-      upcoming_appointments: patientSummaryResult.rows[0]?.upcoming_appointments || 0,
-      messages_today: conversationSummaryResult.rows[0]?.messages_today || 0,
-      new_patients_30d: patientSummaryResult.rows[0]?.new_patients_30d || 0,
-    };
+    const overviewResult = await db.query(`
+      WITH
+        active_counties AS (
+          SELECT id, name, code, is_active, created_at
+          FROM counties
+          WHERE is_active = TRUE
+        ),
+        active_facilities AS (
+          SELECT f.id, f.name, f.code, f.facility_type, f.operational_status, f.is_active,
+            f.county_id, f.email, f.sms_activation, c.name AS county_name, c.code AS county_code
+          FROM facilities f
+          LEFT JOIN counties c ON f.county_id = c.id
+          WHERE f.is_active = TRUE
+        ),
+        patient_by_facility AS (
+          SELECT
+            facility_id,
+            COUNT(*)::int AS patient_count,
+            COUNT(*) FILTER (WHERE risk_level = 'high')::int AS high_risk,
+            COUNT(*) FILTER (WHERE risk_level = 'medium')::int AS medium_risk,
+            COUNT(*) FILTER (WHERE risk_level = 'low')::int AS low_risk,
+            COUNT(*) FILTER (
+              WHERE next_appointment_date >= CURRENT_DATE
+                AND next_appointment_date < CURRENT_DATE + INTERVAL '7 days'
+            )::int AS upcoming_appointments,
+            COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS new_patients_30d
+          FROM patients
+          WHERE is_active = TRUE
+          GROUP BY facility_id
+        ),
+        patient_summary AS (
+          SELECT
+            COALESCE(SUM(patient_count), 0)::int AS total_patients,
+            COALESCE(SUM(high_risk), 0)::int AS high_risk_patients,
+            COALESCE(SUM(upcoming_appointments), 0)::int AS upcoming_appointments,
+            COALESCE(SUM(new_patients_30d), 0)::int AS new_patients_30d
+          FROM patient_by_facility
+        ),
+        conversation_summary AS (
+          SELECT
+            COUNT(*)::int AS total_conversations,
+            COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS messages_today
+          FROM conversations
+        ),
+        summary AS (
+          SELECT
+            (SELECT COUNT(*)::int FROM active_counties) AS total_counties,
+            (SELECT COUNT(*)::int FROM active_facilities) AS total_facilities,
+            (SELECT COUNT(*)::int FROM auth_users WHERE is_active = TRUE) AS total_users,
+            (SELECT COUNT(*)::int FROM documents) AS total_documents,
+            (SELECT COUNT(*)::int FROM flagged_patients) AS flagged_patients,
+            ps.total_patients,
+            ps.high_risk_patients,
+            ps.upcoming_appointments,
+            ps.new_patients_30d,
+            cs.total_conversations,
+            cs.messages_today
+          FROM patient_summary ps
+          CROSS JOIN conversation_summary cs
+        ),
+        counties_json AS (
+          SELECT COALESCE(json_agg(row_to_json(county_rows) ORDER BY county_rows.name), '[]'::json) AS counties
+          FROM (
+            SELECT
+              c.id,
+              c.name,
+              c.code,
+              c.is_active,
+              c.created_at,
+              COUNT(af.id)::int AS facility_count,
+              COALESCE(SUM(pbf.patient_count), 0)::int AS patient_count,
+              COALESCE(SUM(pbf.high_risk), 0)::int AS high_risk,
+              COALESCE(SUM(pbf.medium_risk), 0)::int AS medium_risk,
+              COALESCE(SUM(pbf.low_risk), 0)::int AS low_risk
+            FROM active_counties c
+            LEFT JOIN active_facilities af ON af.county_id = c.id
+            LEFT JOIN patient_by_facility pbf ON pbf.facility_id = af.id
+            GROUP BY c.id, c.name, c.code, c.is_active, c.created_at
+          ) county_rows
+        ),
+        facilities_json AS (
+          SELECT COALESCE(json_agg(row_to_json(facility_rows) ORDER BY facility_rows.county_name, facility_rows.name), '[]'::json) AS facilities
+          FROM (
+            SELECT
+              af.id, af.name, af.code, af.facility_type, af.operational_status, af.is_active,
+              af.county_id, af.email, af.sms_activation, af.county_name, af.county_code,
+              COALESCE(pbf.patient_count, 0)::int AS patient_count,
+              COALESCE(pbf.high_risk, 0)::int AS high_risk,
+              COALESCE(pbf.medium_risk, 0)::int AS medium_risk,
+              COALESCE(pbf.low_risk, 0)::int AS low_risk
+            FROM active_facilities af
+            LEFT JOIN patient_by_facility pbf ON pbf.facility_id = af.id
+          ) facility_rows
+        )
+      SELECT row_to_json(summary) AS summary, counties_json.counties, facilities_json.facilities
+      FROM summary, counties_json, facilities_json
+    `);
+    const overview = overviewResult.rows[0] || {};
+    const summary = overview.summary || {};
 
     const payload = {
       success: true,
       data: {
         summary,
-        counties: countiesResult.rows,
-        facilities: facilitiesResult.rows
+        counties: overview.counties || [],
+        facilities: overview.facilities || []
       }
     };
     overviewCache = { expiresAt: Date.now() + OVERVIEW_CACHE_TTL_MS, payload };
-    res.set('Cache-Control', 'private, max-age=10');
+    res.set('Cache-Control', `private, max-age=${Math.floor(OVERVIEW_CACHE_TTL_MS / 1000)}`);
     res.json(payload);
   } catch (error) {
     console.error('Overview error:', error);

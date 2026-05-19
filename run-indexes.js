@@ -28,10 +28,17 @@ async function run() {
       'CREATE INDEX IF NOT EXISTS idx_patients_active_created_at ON patients(created_at DESC) WHERE is_active = TRUE',
       'CREATE INDEX IF NOT EXISTS idx_patients_active_facility_created_at ON patients(facility_id, created_at DESC) WHERE is_active = TRUE',
       'CREATE INDEX IF NOT EXISTS idx_patients_active_facility_risk ON patients(facility_id, risk_level) WHERE is_active = TRUE',
+      'CREATE INDEX IF NOT EXISTS idx_patients_active_facility_phone ON patients(facility_id, phone) WHERE is_active = TRUE AND phone IS NOT NULL',
       'CREATE INDEX IF NOT EXISTS idx_patients_active_risk ON patients(risk_level) WHERE is_active = TRUE',
       'CREATE INDEX IF NOT EXISTS idx_patients_active_next_appointment ON patients(next_appointment_date) WHERE is_active = TRUE',
       'CREATE INDEX IF NOT EXISTS idx_conversations_created_at_desc ON conversations(created_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_conversations_patient_phone_created_at ON conversations(patient_phone, created_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_facilities_active_county ON facilities(county_id) WHERE is_active = TRUE',
+      'CREATE INDEX IF NOT EXISTS idx_counties_active_name ON counties(name) WHERE is_active = TRUE',
+      'CREATE INDEX IF NOT EXISTS idx_auth_users_active ON auth_users(id) WHERE is_active = TRUE',
+      'CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status)',
       'CREATE INDEX IF NOT EXISTS idx_flagged_patients_facility_status ON flagged_patients(facility_id, status)',
+      'CREATE INDEX IF NOT EXISTS idx_flagged_patients_facility_created_at ON flagged_patients(facility_id, created_at DESC)',
     ];
     for (const s of stmts) {
       console.log('Running:', s.substring(0, 70) + '...');

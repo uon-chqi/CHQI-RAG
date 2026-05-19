@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
+const DASHBOARD_CACHE_MS = 60000;
 
 interface Stats {
   totalPatients: number;
@@ -22,7 +23,7 @@ interface County { id: string; name: string; code: string; facility_count?: numb
 interface Facility { id: string; name: string; code: string; county_name: string; operational_status: string; email?: string; patient_count?: number; high_risk?: number; medium_risk?: number; low_risk?: number; }
 
 export default function Dashboard() {
-  const { user, token, isSuperAdmin, isNational, isCounty } = useAuth();
+  const { user, token, loading: authLoading, isSuperAdmin, isNational, isCounty } = useAuth();
   const [stats, setStats] = useState<Stats>({ totalPatients: 0, totalConversations: 0, highRiskPatients: 0, upcomingAppointments: 0, messagesToday: 0, newPatients30d: 0, totalFacilities: 0, totalCounties: 0, totalDocuments: 0, totalUsers: 0, flaggedPatients: 0 });
   const [counties, setCounties] = useState<County[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
@@ -31,38 +32,71 @@ export default function Dashboard() {
   const authHeaders = () => ({ 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) });
 
   const isAdmin = isSuperAdmin || isNational;
+  const cacheKey = user ? `dashboard:${user.role}:${user.id}` : null;
 
-  useEffect(() => { fetchAll(); const iv = setInterval(fetchAll, 60000); return () => clearInterval(iv); }, []);
+  useEffect(() => {
+    if (authLoading || !user) return;
+
+    if (cacheKey) {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Date.now() - parsed.savedAt < DASHBOARD_CACHE_MS) {
+            applyDashboardPayload(parsed.payload);
+            setLoading(false);
+          }
+        } catch {
+          sessionStorage.removeItem(cacheKey);
+        }
+      }
+    }
+
+    fetchAll();
+    const iv = setInterval(fetchAll, DASHBOARD_CACHE_MS);
+    return () => clearInterval(iv);
+  }, [authLoading, user?.id, user?.role, token]);
+
+  const cacheDashboardPayload = (payload: unknown) => {
+    if (!cacheKey) return;
+    sessionStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), payload }));
+  };
+
+  const applyDashboardPayload = (d: any) => {
+    if (!d?.success) return;
+
+    if (isSuperAdmin || isNational) {
+      const s = d.data.summary;
+      setCounties(d.data.counties || []);
+      setFacilities(d.data.facilities || []);
+      setStats({ totalFacilities: parseInt(s?.total_facilities ?? 0), totalPatients: parseInt(s?.total_patients ?? 0), totalCounties: parseInt(s?.total_counties ?? 0), totalUsers: parseInt(s?.total_users ?? 0), totalConversations: parseInt(s?.total_conversations ?? 0), totalDocuments: parseInt(s?.total_documents ?? 0), highRiskPatients: parseInt(s?.high_risk_patients ?? 0), upcomingAppointments: parseInt(s?.upcoming_appointments ?? 0), messagesToday: parseInt(s?.messages_today ?? 0), newPatients30d: parseInt(s?.new_patients_30d ?? 0), flaggedPatients: parseInt(s?.flagged_patients ?? 0) });
+    } else if (isCounty) {
+      const v = d.data;
+      setStats({ totalFacilities: parseInt(v.total_facilities ?? 0), totalPatients: parseInt(v.total_patients ?? 0), totalConversations: parseInt(v.total_conversations ?? 0), highRiskPatients: parseInt(v.high_risk_patients ?? 0), upcomingAppointments: parseInt(v.upcoming_appointments ?? 0), messagesToday: parseInt(v.messages_today ?? 0), newPatients30d: parseInt(v.new_patients_30d ?? 0), flaggedPatients: parseInt(v.flagged_patients ?? 0) });
+      setFacilities(v.facilities || []);
+    }
+  };
 
   const fetchAll = async () => {
     try {
       if (isSuperAdmin || isNational) {
-        // Both super admin and national users see all data
-        const [d, flaggedRes] = await Promise.all([
-          fetch(API_BASE + '/api/admin/overview', { headers: authHeaders() }).then(r => r.json()).catch(() => null),
-          fetch(API_BASE + '/api/flagged/stats', { headers: authHeaders() }).then(r => r.json()).catch(() => null),
-        ]);
-        const flaggedCount = flaggedRes?.success ? (flaggedRes.data?.total ?? 0) : 0;
+        const d = await fetch(API_BASE + '/api/admin/overview', {
+          headers: authHeaders(),
+          cache: 'default',
+        }).then(r => r.json()).catch(() => null);
         if (d?.success) {
-          const s = d.data.summary;
-          setCounties(d.data.counties || []);
-          setFacilities(d.data.facilities || []);
-          setStats({ totalFacilities: parseInt(s?.total_facilities ?? 0), totalPatients: parseInt(s?.total_patients ?? 0), totalCounties: parseInt(s?.total_counties ?? 0), totalUsers: parseInt(s?.total_users ?? 0), totalConversations: parseInt(s?.total_conversations ?? 0), totalDocuments: parseInt(s?.total_documents ?? 0), highRiskPatients: parseInt(s?.high_risk_patients ?? 0), upcomingAppointments: parseInt(s?.upcoming_appointments ?? 0), messagesToday: parseInt(s?.messages_today ?? 0), newPatients30d: parseInt(s?.new_patients_30d ?? 0), flaggedPatients: flaggedCount });
+          applyDashboardPayload(d);
+          cacheDashboardPayload(d);
         }
       } else if (isCounty) {
-        // County manager sees county-scoped data
-        const [d, flaggedRes2] = await Promise.all([
-          fetch(API_BASE + '/api/county/dashboard', { headers: authHeaders() }).then(r => r.json()).catch(() => null),
-          fetch(API_BASE + '/api/flagged/stats', { headers: authHeaders() }).then(r => r.json()).catch(() => null),
-        ]);
-        const countyFlaggedCount = flaggedRes2?.success ? (flaggedRes2.data?.total ?? 0) : 0;
+        const d = await fetch(API_BASE + '/api/county/dashboard', {
+          headers: authHeaders(),
+          cache: 'default',
+        }).then(r => r.json()).catch(() => null);
         if (d?.success) {
-          const v = d.data;
-          setStats({ totalFacilities: parseInt(v.total_facilities ?? 0), totalPatients: parseInt(v.total_patients ?? 0), totalConversations: parseInt(v.total_conversations ?? 0), highRiskPatients: parseInt(v.high_risk_patients ?? 0), upcomingAppointments: parseInt(v.upcoming_appointments ?? 0), messagesToday: parseInt(v.messages_today ?? 0), newPatients30d: parseInt(v.new_patients_30d ?? 0), flaggedPatients: countyFlaggedCount });
+          applyDashboardPayload(d);
+          cacheDashboardPayload(d);
         }
-        // Also fetch county's facilities
-        const fac = await fetch(API_BASE + '/api/county/facilities', { headers: authHeaders() }).then(r => r.json()).catch(() => null);
-        if (fac?.success) setFacilities(fac.data || []);
       }
     } catch (err) { console.error('Dashboard fetch error:', err); }
     finally { setLoading(false); }
@@ -134,7 +168,7 @@ export default function Dashboard() {
       <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mt-6">
         <div className={'grid gap-3 ' + (isAdmin ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4')}>
           {cards.map(card => (
-            <div key={card.label} className={'bg-white rounded-xl shadow-sm border border-gray-200 ' + (card.accent || '') + ' p-4 sm:p-5 flex flex-col items-center text-center transition-transform hover:scale-[1.02] hover:shadow-md'}>
+            <div key={card.label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 flex flex-col items-center text-center transition-transform hover:scale-[1.02] hover:shadow-md">
               {loading ? <div className="h-8 w-16 bg-gray-100 rounded animate-pulse mb-1" /> : <span className="text-2xl sm:text-3xl font-extrabold text-gray-900">{(card.value ?? 0).toLocaleString()}</span>}
               <span className="text-[11px] sm:text-xs text-gray-500 font-medium mt-1 leading-tight">{card.label}</span>
             </div>

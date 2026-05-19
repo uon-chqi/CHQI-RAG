@@ -15,7 +15,7 @@ const router = express.Router();
 router.use(authenticateToken);
 
 const dashboardCache = new Map();
-const COUNTY_DASHBOARD_CACHE_TTL_MS = 10000;
+const COUNTY_DASHBOARD_CACHE_TTL_MS = Number(process.env.DASHBOARD_CACHE_TTL_MS || 60000);
 
 // Middleware: resolve county_id from token or query param
 function requireCounty(req, res, next) {
@@ -43,58 +43,90 @@ router.get('/dashboard', async (req, res) => {
 
     const cached = dashboardCache.get(cid);
     if (cached && cached.expiresAt > Date.now()) {
-      res.set('Cache-Control', 'private, max-age=10');
+      res.set('Cache-Control', `private, max-age=${Math.floor(COUNTY_DASHBOARD_CACHE_TTL_MS / 1000)}`);
       return res.json(cached.payload);
     }
 
-    const [facilityResult, patientResult, conversationResult, countyResult] = await Promise.all([
-      db.query(
-        `SELECT COUNT(*) AS total_facilities
-         FROM facilities
-         WHERE county_id = $1 AND is_active = TRUE`,
-        [cid]
-      ),
-      db.query(
-        `SELECT
-           COUNT(*) AS total_patients,
-           COUNT(*) FILTER (WHERE p.risk_level = 'high') AS high_risk_patients,
-           COUNT(*) FILTER (
-             WHERE p.next_appointment_date >= CURRENT_DATE
-               AND p.next_appointment_date < CURRENT_DATE + INTERVAL '7 days'
-           ) AS upcoming_appointments,
-           COUNT(*) FILTER (WHERE p.created_at >= NOW() - INTERVAL '30 days') AS new_patients_30d
-         FROM patients p
-         JOIN facilities f ON p.facility_id = f.id
-         WHERE f.county_id = $1 AND p.is_active = TRUE`,
-        [cid]
-      ),
-      db.query(
-        `SELECT
-           COUNT(*) AS total_conversations,
-           COUNT(*) FILTER (WHERE c.created_at >= NOW() - INTERVAL '24 hours') AS messages_today
-         FROM conversations c
-         JOIN patients p ON c.patient_phone = p.phone
-         JOIN facilities f ON p.facility_id = f.id
-         WHERE f.county_id = $1 AND p.is_active = TRUE`,
-        [cid]
-      ),
-      db.query('SELECT name AS county_name FROM counties WHERE id = $1', [cid]),
-    ]);
+    const dashboardResult = await db.query(
+      `WITH
+        active_facilities AS (
+          SELECT id, name, code, facility_type, operational_status, email
+          FROM facilities
+          WHERE county_id = $1 AND is_active = TRUE
+        ),
+        patient_by_facility AS (
+          SELECT
+            p.facility_id,
+            COUNT(*)::int AS patient_count,
+            COUNT(*) FILTER (WHERE p.risk_level = 'high')::int AS high_risk,
+            COUNT(*) FILTER (
+              WHERE p.next_appointment_date >= CURRENT_DATE
+                AND p.next_appointment_date < CURRENT_DATE + INTERVAL '7 days'
+            )::int AS upcoming_appointments,
+            COUNT(*) FILTER (WHERE p.created_at >= NOW() - INTERVAL '30 days')::int AS new_patients_30d
+          FROM patients p
+          JOIN active_facilities f ON p.facility_id = f.id
+          WHERE p.is_active = TRUE
+          GROUP BY p.facility_id
+        ),
+        county_patient_phones AS (
+          SELECT DISTINCT p.phone
+          FROM patients p
+          JOIN active_facilities f ON p.facility_id = f.id
+          WHERE p.is_active = TRUE AND p.phone IS NOT NULL
+        ),
+        conversation_summary AS (
+          SELECT
+            COUNT(*)::int AS total_conversations,
+            COUNT(*) FILTER (WHERE c.created_at >= NOW() - INTERVAL '24 hours')::int AS messages_today
+          FROM conversations c
+          JOIN county_patient_phones cpp ON cpp.phone = c.patient_phone
+        ),
+        flagged_summary AS (
+          SELECT COUNT(fp.id)::int AS flagged_patients
+          FROM flagged_patients fp
+          JOIN active_facilities f ON fp.facility_id = f.id
+        ),
+        summary AS (
+          SELECT
+            (SELECT COUNT(*)::int FROM active_facilities) AS total_facilities,
+            COALESCE(SUM(pbf.patient_count), 0)::int AS total_patients,
+            COALESCE(SUM(pbf.high_risk), 0)::int AS high_risk_patients,
+            COALESCE(SUM(pbf.upcoming_appointments), 0)::int AS upcoming_appointments,
+            COALESCE(SUM(pbf.new_patients_30d), 0)::int AS new_patients_30d,
+            (SELECT total_conversations FROM conversation_summary) AS total_conversations,
+            (SELECT messages_today FROM conversation_summary) AS messages_today,
+            (SELECT flagged_patients FROM flagged_summary) AS flagged_patients,
+            (SELECT name FROM counties WHERE id = $1) AS county_name
+          FROM patient_by_facility pbf
+        ),
+        facilities_json AS (
+          SELECT COALESCE(json_agg(row_to_json(facility_rows) ORDER BY facility_rows.name), '[]'::json) AS facilities
+          FROM (
+            SELECT
+              f.id,
+              f.name,
+              f.code,
+              f.facility_type,
+              f.operational_status,
+              f.email,
+              COALESCE(pbf.patient_count, 0)::int AS patient_count,
+              COALESCE(pbf.high_risk, 0)::int AS high_risk
+            FROM active_facilities f
+            LEFT JOIN patient_by_facility pbf ON pbf.facility_id = f.id
+          ) facility_rows
+        )
+      SELECT row_to_json(summary) AS summary, facilities_json.facilities
+      FROM summary, facilities_json`,
+      [cid]
+    );
 
-    const summary = {
-      total_facilities: facilityResult.rows[0]?.total_facilities || 0,
-      total_patients: patientResult.rows[0]?.total_patients || 0,
-      total_conversations: conversationResult.rows[0]?.total_conversations || 0,
-      high_risk_patients: patientResult.rows[0]?.high_risk_patients || 0,
-      upcoming_appointments: patientResult.rows[0]?.upcoming_appointments || 0,
-      messages_today: conversationResult.rows[0]?.messages_today || 0,
-      new_patients_30d: patientResult.rows[0]?.new_patients_30d || 0,
-      county_name: countyResult.rows[0]?.county_name || null,
-    };
+    const row = dashboardResult.rows[0] || {};
+    const summary = row.summary || {};
 
-    const payload = { success: true, data: summary };
+    const payload = { success: true, data: { ...summary, facilities: row.facilities || [] } };
     dashboardCache.set(cid, { expiresAt: Date.now() + COUNTY_DASHBOARD_CACHE_TTL_MS, payload });
-    res.set('Cache-Control', 'private, max-age=10');
+    res.set('Cache-Control', `private, max-age=${Math.floor(COUNTY_DASHBOARD_CACHE_TTL_MS / 1000)}`);
     res.json(payload);
   } catch (error) {
     console.error('County dashboard error:', error);
