@@ -16,8 +16,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chqi-health-secret-2026';
 const TOKEN_EXPIRY = '48h';
 
 // Hard-coded super admin credentials (env-driven)
-const SUPER_ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME || 'chqi_sysadmin_ke';
-const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'b69VG2x15egk';
+const SUPER_ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME || 'bvlekrrozvw';
+const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'N1zffHL214e5yJ72';
 
 /**
  * POST /api/auth/login
