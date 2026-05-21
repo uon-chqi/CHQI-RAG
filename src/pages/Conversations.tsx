@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Search, Filter, MessageCircle } from 'lucide-react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Search, Filter, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { api, Conversation } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
+const PAGE_SIZE = 10;
 
 export default function Conversations() {
   const { token, isSuperAdmin, isNational, isCounty } = useAuth();
@@ -13,7 +14,10 @@ export default function Conversations() {
   const [searchPhone, setSearchPhone] = useState('');
   const [filterChannel, setFilterChannel] = useState<string>('all');
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     const urlPhone = searchParams.get('phone');
@@ -22,14 +26,16 @@ export default function Conversations() {
   }, [searchParams.get('phone')]);
 
   useEffect(() => {
-    fetchConversations();
+    setCurrentPage(1);
+    fetchConversations(1);
   }, [searchPhone, filterChannel]);
 
   const authHeaders = () => ({ 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) });
 
-  const fetchConversations = async () => {
+  const fetchConversations = async (page: number) => {
+    setLoading(true);
     try {
-      let data: Conversation[];
+      let data: Conversation[] = [];
       if (isSuperAdmin || isNational) {
         const response = await api.getConversations();
         data = response.data || [];
@@ -40,8 +46,6 @@ export default function Conversations() {
         const res = await fetch(`${API_BASE}/api/county/conversations?${params}`, { headers: authHeaders() });
         const json = await res.json();
         data = json.data || [];
-      } else {
-        data = [];
       }
 
       if (isSuperAdmin || isNational) {
@@ -49,12 +53,28 @@ export default function Conversations() {
         if (filterChannel !== 'all') data = data.filter((conv: Conversation) => conv.channel === filterChannel);
       }
 
-      setConversations(data.slice(0, 100));
+      // Sort newest first
+      data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setTotalCount(data.length);
+      
+      // Paginate
+      const start = (page - 1) * PAGE_SIZE;
+      const end = start + PAGE_SIZE;
+      setConversations(data.slice(start, end));
+      setCurrentPage(page);
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    fetchConversations(page);
   };
 
   const maskPhone = (phone: string) => {
@@ -93,21 +113,27 @@ export default function Conversations() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Outbox</h2>
-          <p className="text-gray-500">Search and filter past client interactions</p>
+          <p className="text-gray-500">
+            {totalCount > 0 
+              ? `Showing ${(currentPage - 1) * PAGE_SIZE + 1}-${Math.min(currentPage * PAGE_SIZE, totalCount)} of ${totalCount} conversations`
+              : 'Search and filter past client interactions'}
+          </p>
         </div>
         <button
-          onClick={() => navigate('/client/chat')}
+          onClick={() => window.open('/client/chat', '_blank')}
           className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-navy-900 text-white rounded-md hover:bg-navy-800 transition-colors"
-          title="Open Chat"
+          title="Open Chat in new tab"
         >
           <MessageCircle size={13} />
           Chat
         </button>
       </div>
 
+      {/* Search & Filter Bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center gap-4">
           <div className="flex-1 relative">
@@ -126,6 +152,7 @@ export default function Conversations() {
         </div>
       </div>
 
+      {/* Conversations Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -159,6 +186,46 @@ export default function Conversations() {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+            <div className="text-sm text-gray-500">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={14} />
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`w-8 h-8 text-sm font-medium rounded-md transition-colors ${
+                    page === currentPage
+                      ? 'bg-navy-900 text-white'
+                      : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
