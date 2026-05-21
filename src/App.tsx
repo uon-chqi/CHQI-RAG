@@ -5,7 +5,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Chat from './pages/Chat';
 import LiveMessages from './pages/LiveMessages';
 import Conversations from './pages/Conversations';
 import Documents from './pages/Documents';
@@ -32,21 +31,12 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/chatbot" element={<Chatbot />} />
-          {/* Client-only chat, no navigation */}
           <Route path="/client/chat" element={<ClientChat />} />
           <Route path="/client/chat/:clientid" element={<ClientChat />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
-            <Route path="chat" element={<Chatbot />} />
-            <Route path="live" element={<LiveMessages />} />
-            <Route path="conversations" element={<Conversations />} />
+            <Route path="outbox" element={<Conversations />} />
+            <Route path="inbox" element={<LiveMessages />} />
             <Route path="documents" element={<Documents />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="system" element={<SystemHealth />} />
@@ -58,40 +48,10 @@ export default function App() {
             <Route path="flagged-patients/:facilityId" element={<FlaggedPatients />} />
             <Route path="admin/hierarchy" element={<AdminDashboard />} />
             <Route path="admin/users" element={<UserManagement />} />
-
-            {/* ── SMS Workflow Engine ─────────────────────────────── */}
-            <Route
-              path="admin/sms-templates"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <SmsTemplates />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="admin/workflows"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <WorkflowsList />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="admin/workflows/builder/:id?"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <WorkflowBuilder />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="admin/workflow-simulation"
-              element={
-                <ProtectedRoute requiredRole="super_admin">
-                  <WorkflowSimulation />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="admin/sms-templates" element={<ProtectedRoute requiredRole="super_admin"><SmsTemplates /></ProtectedRoute>} />
+            <Route path="admin/workflows" element={<ProtectedRoute requiredRole="super_admin"><WorkflowsList /></ProtectedRoute>} />
+            <Route path="admin/workflows/builder/:id?" element={<ProtectedRoute requiredRole="super_admin"><WorkflowBuilder /></ProtectedRoute>} />
+            <Route path="admin/workflow-simulation" element={<ProtectedRoute requiredRole="super_admin"><WorkflowSimulation /></ProtectedRoute>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
