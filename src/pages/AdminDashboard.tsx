@@ -1,7 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
+const PAGE_SIZE = 12;
 
 interface County { id: string; name: string; code: string; is_active: boolean; }
 interface Facility { id: string; name: string; code: string; facility_type: string; operational_status: string; is_active: boolean; county_id: string; county_name: string; county_code: string; patient_count: number; email?: string; }
@@ -14,6 +16,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [countyFilter, setCountyFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadData = async () => {
     setLoading(true);
@@ -34,13 +37,24 @@ export default function AdminDashboard() {
 
   useEffect(() => { loadData(); }, []);
 
+  // Reset to page 1 when filter changes
+  useEffect(() => { setCurrentPage(1); }, [countyFilter]);
+
   const filtered = countyFilter ? facilities.filter(f => f.county_id === countyFilter) : facilities;
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const paginated = filtered.slice(start, start + PAGE_SIZE);
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
 
   const summaryCards = summary ? [
-    { label: 'Counties', value: summary.total_counties},
-    { label: 'Facilities', value: summary.total_facilities},
-    { label: 'Clients', value: summary.total_patients},
-    { label: 'Users', value: summary.total_users},
+    { label: 'Counties', value: summary.total_counties },
+    { label: 'Facilities', value: summary.total_facilities },
+    { label: 'Clients', value: summary.total_patients },
+    { label: 'Users', value: summary.total_users },
   ] : [];
 
   return (
@@ -74,7 +88,7 @@ export default function AdminDashboard() {
         {summary && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {summaryCards.map(card => (
-              <div key={card.label} className={`bg-white rounded-xl shadow-sm ${card.accent} p-5 text-center`}>
+              <div key={card.label} className="bg-white rounded-xl shadow-sm p-5 text-center">
                 <span className="block text-3xl font-extrabold text-gray-900">{card.value}</span>
                 <span className="text-xs text-gray-500 font-medium mt-1">{card.label}</span>
               </div>
@@ -98,7 +112,11 @@ export default function AdminDashboard() {
             <option value="">All Counties</option>
             {counties.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <span className="text-sm text-gray-500 ml-auto">{filtered.length} facilities</span>
+          <span className="text-sm text-gray-500 ml-auto">
+            {filtered.length > 0 
+              ? `Showing ${start + 1}-${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length} facilities`
+              : '0 facilities'}
+          </span>
         </div>
 
         {/* Facilities Grid */}
@@ -112,26 +130,68 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : paginated.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">No facilities found</div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map(fac => (
-              <div key={fac.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg hover:border-gray-300 transition-all group">
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-bold text-gray-900 text-base group-hover:text-navy-900 transition-colors">{fac.name}</h3>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paginated.map(fac => (
+                <div key={fac.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg hover:border-gray-300 transition-all group">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="font-bold text-gray-900 text-base group-hover:text-navy-900 transition-colors">{fac.name}</h3>
+                  </div>
+                  <div className="space-y-1.5 text-sm text-gray-500">
+                    <p>MFL Code: <span className="font-mono text-gray-700">{fac.code || '—'}</span></p>
+                    <p>County: <span className="text-navy-700 font-medium">{fac.county_name || '—'}</span></p>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <span className="text-xs text-gray-400">{fac.patient_count || 0} clients</span>
+                    <Link to={`/organisations/${fac.id}`} className="text-xs font-semibold text-navy-900 hover:underline">More →</Link>
+                  </div>
                 </div>
-                <div className="space-y-1.5 text-sm text-gray-500">
-                  <p>MFL Code: <span className="font-mono text-gray-700">{fac.code || '—'}</span></p>
-                  <p>County: <span className="text-navy-700 font-medium">{fac.county_name || '—'}</span></p>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3">
+                <div className="text-sm text-gray-500">
+                  Page {currentPage} of {totalPages}
                 </div>
-                <div className="mt-3 pt-3 border-gray-100 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">{fac.patient_count || 0} clients</span>
-                  <Link to={`/organisations/${fac.id}`} className="text-xs font-semibold text-navy-900 hover:underline">More →</Link>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={14} />
+                    Previous
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`w-8 h-8 text-sm font-medium rounded-md transition-colors ${
+                        page === currentPage
+                          ? 'bg-navy-900 text-white'
+                          : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                    <ChevronRight size={14} />
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>
