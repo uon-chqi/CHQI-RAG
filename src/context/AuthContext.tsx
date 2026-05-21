@@ -58,6 +58,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
+  // ── Auto-logout on 401 ──────────────────────────────────
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      if (response.status === 401 && token) {
+        console.warn('🔒 Session expired — logging out');
+        logout();
+      }
+      return response;
+    };
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [token]);
+
   const login = async (email: string, password: string, username?: string) => {
     const body: Record<string, string> = { password };
     if (username) body.username = username;
@@ -86,6 +102,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     localStorage.removeItem('chqi_token');
     localStorage.removeItem('chqi_user');
+    // Redirect to login page
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
   };
 
   return (
