@@ -1,9 +1,9 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, ExternalLink } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
-const PAGE_SIZE = 9;
+const PAGE_SIZE = 10;
 
 interface County { id: string; name: string; code: string; is_active: boolean; }
 interface Facility { id: string; name: string; code: string; facility_type: string; operational_status: string; is_active: boolean; county_id: string; county_name: string; county_code: string; patient_count: number; email?: string; }
@@ -37,11 +37,8 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => { loadData(); }, []);
-
-  // Reset to page 1 when filters change
   useEffect(() => { setCurrentPage(1); }, [countyFilter, searchQuery]);
 
-  // Memoized filtering for instant response
   const filtered = useMemo(() => {
     let result = facilities;
     if (countyFilter) result = result.filter(f => f.county_id === countyFilter);
@@ -66,6 +63,13 @@ export default function AdminDashboard() {
     { label: 'Clients', value: summary.total_patients },
     { label: 'Users', value: summary.total_users },
   ] : [];
+
+  const statusBadge = (status: string) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'operational' || s === 'active') return 'bg-emerald-50 text-emerald-700';
+    if (s === 'partial') return 'bg-amber-50 text-amber-700';
+    return 'bg-gray-50 text-gray-600';
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -113,9 +117,8 @@ export default function AdminDashboard() {
             />
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap" htmlFor="county-filter">County:</label>
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">County:</label>
             <select
-              id="county-filter"
               value={countyFilter}
               onChange={e => setCountyFilter(e.target.value)}
               className="flex-1 sm:flex-none px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy-900/20"
@@ -129,16 +132,11 @@ export default function AdminDashboard() {
           </span>
         </div>
 
-        {/* Facilities Grid */}
+        {/* Facilities Data Table */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1,2,3,4,5,6].map(i => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-3" />
-                <div className="h-3 bg-gray-100 rounded w-1/2 mb-2" />
-                <div className="h-3 bg-gray-100 rounded w-2/3" />
-              </div>
-            ))}
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+            <div className="w-8 h-8 border-4 border-navy-900 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-gray-400 mt-3">Loading facilities...</p>
           </div>
         ) : paginated.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
@@ -146,22 +144,44 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {paginated.map(fac => (
-                <div key={fac.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-gray-300 transition-all group">
-                  <h3 className="font-bold text-gray-900 text-base group-hover:text-navy-900 transition-colors mb-3">
-                    {fac.name}
-                  </h3>
-                  <div className="space-y-1 text-sm text-gray-500">
-                    <p>MFL: <span className="font-mono text-gray-700">{fac.code || '—'}</span></p>
-                    <p>County: <span className="text-navy-700 font-medium">{fac.county_name || '—'}</span></p>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-xs text-gray-400">{fac.patient_count || 0} clients</span>
-                    <Link to={`/organisations/${fac.id}`} className="text-xs font-semibold text-navy-900 hover:underline">View →</Link>
-                  </div>
-                </div>
-              ))}
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Facility Name</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">MFL Code</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">County</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Status</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Clients</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-600 uppercase w-20">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paginated.map(fac => (
+                      <tr key={fac.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-gray-900">{fac.name}</td>
+                        <td className="px-4 py-3 text-gray-600 font-mono text-xs">{fac.code || '—'}</td>
+                        <td className="px-4 py-3 text-gray-700">{fac.county_name || '—'}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge(fac.operational_status)}`}>
+                            {fac.operational_status || 'active'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-gray-900">{fac.patient_count || 0}</td>
+                        <td className="px-4 py-3 text-center">
+                          <Link
+                            to={`/organisations/${fac.id}`}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-navy-900 hover:text-navy-700 transition-colors"
+                          >
+                            View <ExternalLink size={12} />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Simple Previous/Next Pagination */}

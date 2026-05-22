@@ -69,7 +69,9 @@ export default function Dashboard() {
       const s = d.data.summary;
       setCounties(d.data.counties || []);
       setFacilities(d.data.facilities || []);
-      setStats({ totalFacilities: parseInt(s?.total_facilities ?? 0), totalPatients: parseInt(s?.total_patients ?? 0), totalCounties: parseInt(s?.total_counties ?? 0), totalUsers: parseInt(s?.total_users ?? 0), totalConversations: parseInt(s?.total_conversations ?? 0), totalDocuments: parseInt(s?.total_documents ?? 0), highRiskPatients: parseInt(s?.high_risk_patients ?? 0), upcomingAppointments: parseInt(s?.upcoming_appointments ?? 0), messagesToday: parseInt(s?.messages_today ?? 0), newPatients30d: parseInt(s?.new_patients_30d ?? 0), flaggedPatients: parseInt(s?.flagged_patients ?? 0) });
+      // Use actual counties from data (those with facilities) rather than total_counties from SQL
+      const actualCountyCount = (d.data.counties || []).length;
+      setStats({ totalFacilities: parseInt(s?.total_facilities ?? 0), totalPatients: parseInt(s?.total_patients ?? 0), totalCounties: actualCountyCount || parseInt(s?.total_counties ?? 0), totalUsers: parseInt(s?.total_users ?? 0), totalConversations: parseInt(s?.total_conversations ?? 0), totalDocuments: parseInt(s?.total_documents ?? 0), highRiskPatients: parseInt(s?.high_risk_patients ?? 0), upcomingAppointments: parseInt(s?.upcoming_appointments ?? 0), messagesToday: parseInt(s?.messages_today ?? 0), newPatients30d: parseInt(s?.new_patients_30d ?? 0), flaggedPatients: parseInt(s?.flagged_patients ?? 0) });
     } else if (isCounty) {
       const v = d.data;
       setStats({ totalFacilities: parseInt(v.total_facilities ?? 0), totalPatients: parseInt(v.total_patients ?? 0), totalConversations: parseInt(v.total_conversations ?? 0), highRiskPatients: parseInt(v.high_risk_patients ?? 0), upcomingAppointments: parseInt(v.upcoming_appointments ?? 0), messagesToday: parseInt(v.messages_today ?? 0), newPatients30d: parseInt(v.new_patients_30d ?? 0), flaggedPatients: parseInt(v.flagged_patients ?? 0) });
@@ -102,10 +104,13 @@ export default function Dashboard() {
     finally { setLoading(false); }
   };
 
+  // County count from actual data (only counties with facilities)
+  const actualCountyCount = counties.length || stats.totalCounties || 0;
+
   const adminCards = [
     { label: 'Facilities', value: stats.totalFacilities ?? 0 },
     { label: 'Clients', value: stats.totalPatients },
-    { label: 'Counties', value: stats.totalCounties ?? 0 },
+    { label: 'Counties', value: actualCountyCount },
     { label: 'Conversations', value: stats.totalConversations },
     { label: 'Documents', value: stats.totalDocuments ?? 0 },
     { label: 'Active Users', value: stats.totalUsers ?? 0 },
@@ -113,7 +118,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New Clients', value: stats.newPatients30d },
-    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, },
+    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0 },
   ];
   const countyCards = [
     { label: 'Facilities', value: stats.totalFacilities ?? 0 },
@@ -123,7 +128,7 @@ export default function Dashboard() {
     { label: 'Upcoming Appointments', value: stats.upcomingAppointments },
     { label: 'Messages Today', value: stats.messagesToday },
     { label: 'New (30d)', value: stats.newPatients30d },
-    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0, },
+    { label: 'Flagged Clients', value: stats.flaggedPatients ?? 0 },
   ];
   const cards = isAdmin ? adminCards : countyCards;
 
@@ -140,16 +145,6 @@ export default function Dashboard() {
     if (h < 17) return 'Good afternoon';
     return 'Good evening';
   };
-
-  const dashTitle = isCounty
-    ? (user?.county_name ? `${user.county_name} County` : 'County Dashboard')
-    : 'System Overview';
-
-  const dashSub = isCounty
-    ? 'County Manager Dashboard'
-    : isNational
-      ? 'National Overview'
-      : 'Super Admin Dashboard';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -202,7 +197,7 @@ export default function Dashboard() {
                     <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">Loading...</td></tr>
                   ) : counties.length === 0 ? (
                     <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">No counties</td></tr>
-                  ) : counties.slice(0, 10).map(c => {
+                  ) : counties.map(c => {
                     const countyFacilities = facilities.filter(f => f.county_name === c.name);
                     const facilityCount = Number(c.facility_count) || countyFacilities.length;
                     const patientCount = Number(c.patient_count) || countyFacilities.reduce((sum, f) => sum + (Number(f.patient_count) || 0), 0);
@@ -231,7 +226,6 @@ export default function Dashboard() {
       {/* County Manager: facilities in their county + quick actions */}
       {isCounty && (
         <section className="mt-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-12">
-          {/* Facilities in this county */}
           {facilities.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200/60 overflow-hidden mb-6">
               <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
@@ -256,13 +250,12 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Quick actions */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Link to="/patient-management" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all group">
               <h3 className="text-lg font-bold text-gray-900 group-hover:text-navy-900">Manage Clients</h3>
               <p className="text-sm text-gray-500 mt-1">View client records across facilities in your county</p>
             </Link>
-            <Link to="/conversations" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all group">
+            <Link to="/outbox" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all group">
               <h3 className="text-lg font-bold text-gray-900 group-hover:text-navy-900">Conversations</h3>
               <p className="text-sm text-gray-500 mt-1">View SMS and WhatsApp conversations in your county</p>
             </Link>
