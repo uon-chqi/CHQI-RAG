@@ -139,8 +139,8 @@ app.use((req, res, next) => {
 // Function to start server with retry logic
 const startServer = (port) => {
   const server = app.listen(port, '0.0.0.0', () => {
-    console.log(`✅ Healthcare RAG Server running on port ${port}`);
-    console.log(`📊 Health check: http://localhost:${port}/api/health`);
+    console.log(` RAG Server running on port ${port}`);
+    console.log(` Health check: http://localhost:${port}/api/health`);
   });
 
   server.on('error', (err) => {

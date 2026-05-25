@@ -87,13 +87,28 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-x-hidden">
+      {/* ── Top Navigation Bar ─────────────────────────────── */}
       <header className="sticky top-0 z-50 backdrop-blur-md border-b border-white/10 shadow-lg" style={{ backgroundColor: 'rgba(10,27,58,0.97)' }}>
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
+            {/* Brand + Partner Logos */}
+            <Link to="/" className="flex items-center gap-3 flex-shrink-0 group">
               <span className="text-white font-bold text-lg tracking-tight group-hover:text-blue-200 transition-colors">
                 SMS-PORTAL
               </span>
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="w-px h-5 bg-white/20" />
+                <img
+                  src="https://i.postimg.cc/ZqBXLY7F/Ministy-of-Health-logo.png"
+                  alt="Ministry of Health Kenya"
+                  className="h-7 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity"
+                />
+                <img
+                  src="https://i.postimg.cc/sD3dRrxK/NASCOP-logo.png"
+                  alt="NASCOP"
+                  className="h-7 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity"
+                />
+              </div>
             </Link>
 
             <nav className="hidden lg:flex items-center gap-0.5 flex-1 justify-center">
@@ -174,19 +189,23 @@ export default function Layout() {
         </div>
       </header>
 
+      {/* ── Mobile Drawer ─────────────────────────────────── */}
       <div className={`fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setMobileOpen(false)} />
       <aside className={`fixed top-0 left-0 z-[70] h-full w-72 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ backgroundColor: NAVY }}>
         <div className="flex items-center justify-between px-5 h-16 border-b border-white/10 flex-shrink-0">
-          <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <span className="text-white font-bold text-lg tracking-tight">SMS-PORTAL</span>
-          </Link>
+            <div className="flex items-center gap-1.5 ml-2">
+              <img src="https://i.postimg.cc/ZqBXLY7F/Ministy-of-Health-logo.png" alt="MOH" className="h-6 w-auto object-contain opacity-80" />
+              <img src="https://i.postimg.cc/sD3dRrxK/NASCOP-logo.png" alt="NASCOP" className="h-6 w-auto object-contain opacity-80" />
+            </div>
+          </div>
           <button onClick={() => setMobileOpen(false)} className="p-1.5 rounded-lg text-blue-200/70 hover:text-white hover:bg-white/10 transition-colors" aria-label="Close menu">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {navItems.map((item) => {
             if (isNavGroup(item)) {
@@ -214,7 +233,6 @@ export default function Layout() {
             return <Link key={item.path} to={item.path} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${isActive(item.path) ? 'bg-white/15 text-white shadow-sm' : 'text-blue-200/80 hover:bg-white/[0.07] hover:text-white'}`}>{item.label}{isActive(item.path) && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />}</Link>;
           })}
         </nav>
-
         <div className="flex-shrink-0 border-t border-white/10 px-4 py-4">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400/30 to-cyan-400/20 border border-white/20 flex items-center justify-center flex-shrink-0">
@@ -229,9 +247,34 @@ export default function Layout() {
         </div>
       </aside>
 
+      {/* ── Page Content ───────────────────────────────────── */}
       <main className="flex-1">
         <Outlet />
       </main>
+
+      {/* ── Footer ─────────────────────────────────────────── */}
+      <footer className="bg-gray-100 border-t border-gray-200 py-5">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-center sm:text-left">
+            <p className="text-sm font-semibold text-gray-700">SMS-PORTAL</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              &copy; {new Date().getFullYear()} All rights reserved.
+            </p>
+          </div>
+          <div className="flex items-center gap-5">
+            <img
+              src="https://i.postimg.cc/ZqBXLY7F/Ministy-of-Health-logo.png"
+              alt="Ministry of Health Kenya"
+              className="h-10 w-auto object-contain"
+            />
+            <img
+              src="https://i.postimg.cc/sD3dRrxK/NASCOP-logo.png"
+              alt="NASCOP"
+              className="h-10 w-auto object-contain"
+            />
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

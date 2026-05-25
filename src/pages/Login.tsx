@@ -29,9 +29,22 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-12">
-      {/* Brand */}
+      {/* Brand + Partner Logos */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900">SMS-PORTAL</h1>
+        <h1 className="text-3xl font-extrabold text-gray-900 mb-6">SMS-PORTAL</h1>
+        <div className="flex items-center justify-center gap-8">
+          <img
+            src="https://i.postimg.cc/ZqBXLY7F/Ministy-of-Health-logo.png"
+            alt="Ministry of Health Kenya"
+            className="h-14 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+          />
+          <div className="w-px h-10 bg-gray-300" />
+          <img
+            src="https://i.postimg.cc/sD3dRrxK/NASCOP-logo.png"
+            alt="NASCOP"
+            className="h-14 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+          />
+        </div>
       </div>
 
       {/* Card */}
@@ -65,6 +78,11 @@ export default function Login() {
           Contact your administrator for account access.
         </p>
       </div>
+
+      {/* Footer */}
+      <p className="text-center text-gray-400 text-xs mt-6">
+        &copy; {new Date().getFullYear()} CHQI — Ministry of Health & NASCOP. All rights reserved.
+      </p>
     </div>
   );
 }
