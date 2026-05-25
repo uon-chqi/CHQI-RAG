@@ -88,7 +88,6 @@ export default function Layout() {
     setMobileOpen(false);
   }, [location.pathname]);
 
-  // Prevent body scroll when mobile drawer is open
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -98,14 +97,15 @@ export default function Layout() {
     <div className="min-h-screen bg-gray-50 flex flex-col overflow-x-hidden">
 
       {/* ══════════════════════════════════════════════════════
-          TOP NAVIGATION BAR
+          TOP NAVIGATION BAR — taller header for stacked logos
       ══════════════════════════════════════════════════════ */}
       <header
         className="sticky top-0 z-50 border-b border-white/10 shadow-lg"
         style={{ backgroundColor: 'rgba(10,27,58,0.97)', backdropFilter: 'blur(12px)' }}
       >
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          {/* Taller header: h-20 → h-24 on desktop, auto on mobile */}
+          <div className="flex items-center justify-between min-h-[4.5rem] sm:min-h-[5.5rem] py-2 sm:py-3">
 
             {/* ── Brand: name + logos stacked below ── */}
             <Link
@@ -114,22 +114,22 @@ export default function Layout() {
               aria-label="SMS-PORTAL home"
             >
               {/* Brand name */}
-              <span className="text-white font-extrabold text-xl tracking-widest uppercase leading-none group-hover:text-blue-200 transition-colors duration-200">
+              <span className="text-white font-extrabold text-lg sm:text-xl tracking-widest uppercase leading-none group-hover:text-blue-200 transition-colors duration-200">
                 SMS-PORTAL
               </span>
 
-              {/* Partner logos row — sits below the brand name */}
-              <div className="flex items-center gap-2.5 mt-1.5">
+              {/* Partner logos row — clearly below brand name */}
+              <div className="flex items-center gap-2 sm:gap-2.5 mt-1.5 sm:mt-2">
                 <img
                   src="https://i.postimg.cc/ZqBXLY7F/Ministy-of-Health-logo.png"
                   alt="Ministry of Health Kenya"
-                  className="h-6 w-auto object-contain opacity-85 group-hover:opacity-100 transition-opacity duration-200"
+                  className="h-5 sm:h-6 w-auto object-contain opacity-85 group-hover:opacity-100 transition-opacity duration-200"
                 />
-                <div className="w-px h-4 bg-white/20 rounded-full" />
+                <div className="w-px h-3.5 sm:h-4 bg-white/20 rounded-full" />
                 <img
                   src="https://i.postimg.cc/sD3dRrxK/NASCOP-logo.png"
                   alt="NASCOP"
-                  className="h-6 w-auto object-contain opacity-85 group-hover:opacity-100 transition-opacity duration-200"
+                  className="h-5 sm:h-6 w-auto object-contain opacity-85 group-hover:opacity-100 transition-opacity duration-200"
                 />
               </div>
             </Link>
@@ -249,7 +249,7 @@ export default function Layout() {
             {/* ── Mobile Hamburger ── */}
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2 rounded-lg text-blue-200 hover:bg-white/10 active:bg-white/15 transition-colors"
+              className="lg:hidden p-2 -mr-1 rounded-lg text-blue-200 hover:bg-white/10 active:bg-white/15 transition-colors"
               aria-label="Open navigation menu"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,9 +281,8 @@ export default function Layout() {
         style={{ backgroundColor: NAVY }}
         aria-label="Mobile navigation"
       >
-        {/* Drawer header */}
-        <div className="flex items-center justify-between px-5 h-20 border-b border-white/10 flex-shrink-0">
-          {/* Brand + stacked logos — mirrors desktop */}
+        {/* Drawer header — mirrors desktop brand + logos */}
+        <div className="flex items-center justify-between px-5 min-h-[4.5rem] py-3 border-b border-white/10 flex-shrink-0">
           <Link
             to="/"
             className="flex flex-col items-start group"
@@ -306,8 +305,6 @@ export default function Layout() {
               />
             </div>
           </Link>
-
-          {/* Close button */}
           <button
             onClick={() => setMobileOpen(false)}
             className="p-2 rounded-lg text-blue-200/70 hover:text-white hover:bg-white/10 active:bg-white/15 transition-colors flex-shrink-0"
@@ -338,7 +335,6 @@ export default function Layout() {
                       className={`transition-transform duration-200 flex-shrink-0 ${mobileSmsOpen ? 'rotate-180' : ''}`}
                     />
                   </button>
-
                   {mobileSmsOpen && (
                     <div className="px-2 pb-2 pt-0.5 space-y-0.5 border-t border-white/[0.06]">
                       {item.children.map((child) => {
@@ -378,7 +374,6 @@ export default function Layout() {
                 </div>
               );
             }
-
             return (
               <Link
                 key={item.path}
